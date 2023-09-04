@@ -57,6 +57,7 @@ members = [
 	"cumulus/pallets/xcmp-queue",
 	"cumulus/parachain-template/node",
 	"cumulus/parachain-template/pallets/template",
+        "cumulus/parachain-template/pallets/xcmp-message-stuffer",
 	"cumulus/parachain-template/runtime",
 	"cumulus/parachains/common",
 	"cumulus/parachains/integration-tests/emulated/assets/asset-hub-kusama",
