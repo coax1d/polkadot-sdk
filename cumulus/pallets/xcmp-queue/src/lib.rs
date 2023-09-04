@@ -344,7 +344,7 @@ pub mod pallet {
 	// The new way of doing it:
 	/// The messages outbound in a given XCMP channel.
 	#[pallet::storage]
-	pub(super) type OutboundXcmpMessages<T: Config> =
+	pub type OutboundXcmpMessages<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, ParaId, Twox64Concat, u16, Vec<u8>, ValueQuery>;
 
 	/// Any signal messages waiting to be sent.
