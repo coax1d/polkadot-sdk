@@ -182,7 +182,7 @@ mod mmr_root_provider {
 		/// Simple wrapper that gets MMR root from header digests or from client state.
 		fn mmr_root_from_digest_or_runtime(&self, header: &B::Header) -> Option<MmrRootHash> {
 			find_mmr_root_digest::<B>(header).or_else(|| {
-				self.runtime.runtime_api().mmr_root(header.hash()).ok().and_then(|r| r.ok())
+				self.runtime.runtime_api().mmr_root(header.hash(), 1u64).ok().and_then(|r| r.ok())
 			})
 		}
 	}

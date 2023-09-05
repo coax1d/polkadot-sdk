@@ -425,7 +425,7 @@ sp_api::decl_runtime_apis! {
 	#[api_version(2)]
 	pub trait MmrApi<Hash: codec::Codec, BlockNumber: codec::Codec> {
 		/// Return the on-chain MMR root hash.
-		fn mmr_root() -> Result<Hash, Error>;
+		fn mmr_root(mmr_id: u64) -> Result<Hash, Error>;
 
 		/// Return the number of MMR blocks in the chain.
 		fn mmr_leaf_count() -> Result<LeafIndex, Error>;
@@ -434,7 +434,8 @@ sp_api::decl_runtime_apis! {
 		/// use historical MMR state at given block height `n`. Else, use current MMR state.
 		fn generate_proof(
 			block_numbers: Vec<BlockNumber>,
-			best_known_block_number: Option<BlockNumber>
+			best_known_block_number: Option<BlockNumber>,
+			mmr_id: u64,
 		) -> Result<(Vec<EncodableOpaqueLeaf>, Proof<Hash>), Error>;
 
 		/// Verify MMR proof against on-chain MMR for a batch of leaves.

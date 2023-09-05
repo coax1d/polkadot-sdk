@@ -77,7 +77,7 @@ impl<BlockHash> LeavesProof<BlockHash> {
 pub trait MmrApi<BlockHash, BlockNumber, MmrHash> {
 	/// Get the MMR root hash for the current best block.
 	#[method(name = "mmr_root")]
-	fn mmr_root(&self, at: Option<BlockHash>) -> RpcResult<MmrHash>;
+	fn mmr_root(&self, at: Option<BlockHash>, mmr_id: u64) -> RpcResult<MmrHash>;
 
 	/// Generate an MMR proof for the given `block_numbers`.
 	///
@@ -104,6 +104,7 @@ pub trait MmrApi<BlockHash, BlockNumber, MmrHash> {
 		block_numbers: Vec<BlockNumber>,
 		best_known_block_number: Option<BlockNumber>,
 		at: Option<BlockHash>,
+		mmr_id: u64
 	) -> RpcResult<LeavesProof<BlockHash>>;
 
 	/// Verify an MMR `proof`.
@@ -153,13 +154,13 @@ where
 	MmrHash: Codec + Send + Sync + 'static,
 	S: OffchainStorage + 'static,
 {
-	fn mmr_root(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<MmrHash> {
+	fn mmr_root(&self, at: Option<<Block as BlockT>::Hash>, mmr_id: u64,) -> RpcResult<MmrHash> {
 		let block_hash = at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
 			self.client.info().best_hash);
 		let api = self.client.runtime_api();
 		let mmr_root = api
-			.mmr_root(block_hash)
+			.mmr_root(block_hash, mmr_id)
 			.map_err(runtime_error_into_rpc_error)?
 			.map_err(mmr_error_into_rpc_error)?;
 		Ok(mmr_root)
@@ -170,6 +171,7 @@ where
 		block_numbers: Vec<NumberFor<Block>>,
 		best_known_block_number: Option<NumberFor<Block>>,
 		at: Option<<Block as BlockT>::Hash>,
+		mmr_id: u64,
 	) -> RpcResult<LeavesProof<<Block as BlockT>::Hash>> {
 		let mut api = self.client.runtime_api();
 		let block_hash = at.unwrap_or_else(||
@@ -179,7 +181,7 @@ where
 		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 
 		let (leaves, proof) = api
-			.generate_proof(block_hash, block_numbers, best_known_block_number)
+			.generate_proof(block_hash, block_numbers, best_known_block_number, mmr_id)
 			.map_err(runtime_error_into_rpc_error)?
 			.map_err(mmr_error_into_rpc_error)?;
 
