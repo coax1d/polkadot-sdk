@@ -1,5 +1,5 @@
 [package]
-name = "xcmp-message-stuffer"
+name = "pallet-xcmp-message-stuffer"
 authors = ["Anonymous"]
 description = "FRAME pallet stuffing xcm messages into an xcmp message which then gets stuff in a MMR then into a Trie"
 version = "0.1.0"

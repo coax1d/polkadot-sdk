@@ -15,7 +15,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify, Keccak256},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -29,7 +29,7 @@ use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
 	parameter_types,
-	traits::{ConstBool, ConstU32, ConstU64, ConstU8, EitherOfDiverse, Everything},
+	traits::{ConstBool, ConstU32, ConstU64, ConstU8, EitherOfDiverse, Everything,},
 	weights::{
 		constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight, WeightToFeeCoefficient,
 		WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -48,6 +48,13 @@ use xcm_config::{RelayLocation, XcmConfig, XcmOriginToTransactDispatchOrigin};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
+// Prototype imports
+use cumulus_primitives_core::ParaId;
+use sp_core::Hasher;
+use sp_consensus_beefy::mmr::MmrLeafVersion;
+use pallet_xcmp_message_stuffer::XcmpMessageProvider;
+use cumulus_pallet_xcmp_queue::OutboundXcmpMessages;
+
 // Polkadot imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 
@@ -56,9 +63,6 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 // XCM Imports
 use xcm::latest::prelude::BodyId;
 use xcm_executor::XcmExecutor;
-
-/// Import the template pallet.
-pub use pallet_parachain_template;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -477,9 +481,81 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// Configure the pallet template in pallets/template.
-impl pallet_parachain_template::Config for Runtime {
+pub struct XcmpDataProvider;
+impl XcmpMessageProvider<Hash> for XcmpDataProvider {
+	type XcmpMessages = Hash;
+
+	fn get_xcmp_messages(block_hash: Hash, para_id: ParaId) -> Self::XcmpMessages {
+		// TODO: Temporarily we aggregate all the fragments destined to a particular
+		// Parachain per block and hash them and stick that into the mmr otherwise need a way
+		// of adding multiple MMR leaves per block to the MMR (Which for now means editing the mmr impl?)
+		let mut msg_buffer = Vec::new();
+		let mut counter = 0u16;
+		while let Ok(buffer) = OutboundXcmpMessages::<Runtime>::try_get(para_id, counter) {
+			msg_buffer.extend_from_slice(&buffer[..]);
+			counter += 1;
+		}
+
+		// TODO: Remove this default and add in some kind of Error/Default if there are no XCMP messages to insert into the MMR?
+		BlakeTwo256::hash(&msg_buffer[..])
+	}
+}
+
+parameter_types! {
+	/// Version of the produced MMR leaf.
+	///
+	/// The version consists of two parts;
+	/// - `major` (3 bits)
+	/// - `minor` (5 bits)
+	///
+	/// `major` should be updated only if decoding the previous MMR Leaf format from the payload
+	/// is not possible (i.e. backward incompatible change).
+	/// `minor` should be updated if fields are added to the previous MMR Leaf, which given SCALE
+	/// encoding does not prevent old leafs from being decoded.
+	///
+	/// Hence we expect `major` to be changed really rarely (think never).
+	/// See [`MmrLeafVersion`] type documentation for more details.
+	pub LeafVersion: MmrLeafVersion = MmrLeafVersion::new(0, 0);
+
+	pub ParaAIdentifier: ParaId = ParaId::from(1u32);
+}
+
+type ParaAChannel = pallet_xcmp_message_stuffer::Instance1;
+impl pallet_xcmp_message_stuffer::Config<ParaAChannel> for Runtime {
+	type ParaIdentifier = ParaAIdentifier;
 	type RuntimeEvent = RuntimeEvent;
+	type LeafVersion = LeafVersion;
+	type XcmpDataProvider = XcmpDataProvider;
+}
+
+type ParaAMmr = pallet_mmr::Instance1;
+impl pallet_mmr::Config<ParaAMmr> for Runtime {
+	const INDEXING_PREFIX: &'static [u8] = b"para_a_mmr";
+	type OnNewRoot = pallet_xcmp_message_stuffer::OnNewRootSatisfier<Runtime>;
+	type Hashing = Keccak256;
+	type LeafData = pallet_xcmp_message_stuffer::Pallet<Runtime, ParaAChannel>;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub ParaBIdentifier: ParaId = ParaId::from(2u32);
+}
+
+type ParaBChannel = pallet_xcmp_message_stuffer::Instance2;
+impl pallet_xcmp_message_stuffer::Config<ParaBChannel> for Runtime {
+	type ParaIdentifier = ParaBIdentifier;
+	type RuntimeEvent = RuntimeEvent;
+	type LeafVersion = LeafVersion;
+	type XcmpDataProvider = XcmpDataProvider;
+}
+
+type ParaBMmr = pallet_mmr::Instance2;
+impl pallet_mmr::Config<ParaBMmr> for Runtime {
+	const INDEXING_PREFIX: &'static [u8] = b"para_b_mmr";
+	type OnNewRoot = pallet_xcmp_message_stuffer::OnNewRootSatisfier<Runtime>;
+	type Hashing = Keccak256;
+	type LeafData = pallet_xcmp_message_stuffer::Pallet<Runtime, ParaBChannel>;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -512,8 +588,10 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm = 32,
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
 
-		// Template
-		TemplatePallet: pallet_parachain_template = 50,
+		MsgStufferParaA: pallet_xcmp_message_stuffer::<Instance1> = 50,
+		MsgStufferParaB: pallet_xcmp_message_stuffer::<Instance2> = 51,
+		MmrParaA: pallet_mmr::<Instance1>::{Pallet, Storage} = 52,
+		MmrParaB: pallet_mmr::<Instance2>::{Pallet, Storage} = 53,
 	}
 );
 
@@ -528,6 +606,19 @@ mod benches {
 		[pallet_collator_selection, CollatorSelection]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 	);
+}
+
+mod mmr {
+	use super::Runtime;
+	pub use pallet_mmr::primitives::*;
+	pub use sp_mmr_primitives::{LeafIndex, Error, EncodableOpaqueLeaf, Proof};
+
+	pub type LeafA = <<Runtime as pallet_mmr::Config<crate::ParaAMmr>>::LeafData as LeafDataProvider>::LeafData;
+	pub type LeafB = <<Runtime as pallet_mmr::Config<crate::ParaBMmr>>::LeafData as LeafDataProvider>::LeafData;
+	pub type HashingA = <Runtime as pallet_mmr::Config<crate::ParaAMmr>>::Hashing;
+	pub type HashingB = <Runtime as pallet_mmr::Config<crate::ParaBMmr>>::Hashing;
+	pub type HashA = <HashingA as sp_runtime::traits::Hash>::Output;
+	pub type HashB = <HashingB as sp_runtime::traits::Hash>::Output;
 }
 
 impl_runtime_apis! {
