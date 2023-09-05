@@ -22,6 +22,7 @@ scale-info = { version = "2.9.0", default-features = false, features = ["derive"
 smallvec = "1.11.0"
 
 # Local
+pallet-xcmp-message-stuffer = { path = "../pallets/xcmp-message-stuffer", default-features = false }
 pallet-parachain-template = { path = "../pallets/template", default-features = false }
 
 # Substrate
@@ -35,6 +36,7 @@ frame-try-runtime = { path = "../../../substrate/frame/try-runtime", default-fea
 pallet-aura = { path = "../../../substrate/frame/aura", default-features = false}
 pallet-authorship = { path = "../../../substrate/frame/authorship", default-features = false}
 pallet-balances = { path = "../../../substrate/frame/balances", default-features = false}
+pallet-mmr = { path = "../../../substrate/frame/merkle-mountain-range", default-features = false }
 pallet-session = { path = "../../../substrate/frame/session", default-features = false}
 pallet-sudo = { path = "../../../substrate/frame/sudo", default-features = false}
 pallet-timestamp = { path = "../../../substrate/frame/timestamp", default-features = false}
@@ -51,6 +53,10 @@ sp-session = { path = "../../../substrate/primitives/session", default-features 
 sp-std = { path = "../../../substrate/primitives/std", default-features = false}
 sp-transaction-pool = { path = "../../../substrate/primitives/transaction-pool", default-features = false}
 sp-version = { path = "../../../substrate/primitives/version", default-features = false}
+
+sp-consensus-beefy = { path = "../../../substrate/primitives/consensus/beefy", default-features = false }
+# beefy-primitives = { package = "sp-consensus-beefy", path = "../../../substrate/primitives/consensus/beefy", default-features = false }
+sp-mmr-primitives = { path = "../../../substrate/primitives/merkle-mountain-range", default-features = false }
 
 # Polkadot
 pallet-xcm = { path = "../../../polkadot/xcm/pallet-xcm", default-features = false}
@@ -75,6 +81,7 @@ parachain-info = { path = "../../parachains/pallets/parachain-info", default-fea
 [features]
 default = [ "std" ]
 std = [
+	# "beefy-primitives/std",
 	"codec/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-dmp-queue/std",
@@ -97,6 +104,8 @@ std = [
 	"pallet-balances/std",
 	"pallet-collator-selection/std",
 	"pallet-parachain-template/std",
+	"pallet-mmr/std",
+	"pallet-xcmp-message-stuffer/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -107,6 +116,8 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
+	"sp-consensus-beefy/std",
+	"sp-mmr-primitives/std",
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
