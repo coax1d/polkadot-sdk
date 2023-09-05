@@ -615,13 +615,85 @@ mod mmr {
 
 	pub type LeafA = <<Runtime as pallet_mmr::Config<crate::ParaAMmr>>::LeafData as LeafDataProvider>::LeafData;
 	pub type LeafB = <<Runtime as pallet_mmr::Config<crate::ParaBMmr>>::LeafData as LeafDataProvider>::LeafData;
-	pub type HashingA = <Runtime as pallet_mmr::Config<crate::ParaAMmr>>::Hashing;
-	pub type HashingB = <Runtime as pallet_mmr::Config<crate::ParaBMmr>>::Hashing;
-	pub type HashA = <HashingA as sp_runtime::traits::Hash>::Output;
-	pub type HashB = <HashingB as sp_runtime::traits::Hash>::Output;
+	pub type Hashing = <Runtime as pallet_mmr::Config<crate::ParaAMmr>>::Hashing;
+	// pub type HashingB = <Runtime as pallet_mmr::Config<crate::ParaBMmr>>::Hashing;
+	pub type Hash = <Hashing as sp_runtime::traits::Hash>::Output;
+	// pub type HashB = <HashingB as sp_runtime::traits::Hash>::Output;
 }
 
 impl_runtime_apis! {
+
+	#[api_version(2)]
+	impl mmr::MmrApi<Block, mmr::Hash, BlockNumber> for Runtime {
+		fn mmr_root(mmr_id: u64) -> Result<mmr::Hash, mmr::Error> {
+			match mmr_id {
+				0 => Ok(MmrParaA::mmr_root()),
+				1 => Ok(MmrParaB::mmr_root()),
+				_ => Err(mmr::Error::GetRoot)
+			}
+		}
+
+		fn mmr_leaf_count() -> Result<mmr::LeafIndex, mmr::Error> {
+			Ok(MmrParaA::mmr_leaves())
+		}
+
+		fn generate_proof(
+			block_numbers: Vec<BlockNumber>,
+			best_known_block_number: Option<BlockNumber>,
+			mmr_id: u64,
+		) -> Result<(Vec<mmr::EncodableOpaqueLeaf>, mmr::Proof<mmr::Hash>), mmr::Error> {
+			match mmr_id {
+				0 => {
+					MmrParaA::generate_proof(block_numbers, best_known_block_number).map(
+						|(leaves, proof)| {
+							(
+								leaves
+									.into_iter()
+									.map(|leaf| mmr::EncodableOpaqueLeaf::from_leaf(&leaf))
+									.collect(),
+								proof,
+							)
+						},
+					)
+				},
+				1 => {
+					MmrParaB::generate_proof(block_numbers, best_known_block_number).map(
+						|(leaves, proof)| {
+							(
+								leaves
+									.into_iter()
+									.map(|leaf| mmr::EncodableOpaqueLeaf::from_leaf(&leaf))
+									.collect(),
+								proof,
+							)
+						},
+					)
+				},
+				_ => Err(mmr::Error::GenerateProof)
+			}
+		}
+
+		// TODO: add in mmr_id here as well to know which Leaf Type to return
+		fn verify_proof(leaves: Vec<mmr::EncodableOpaqueLeaf>, proof: mmr::Proof<mmr::Hash>)
+			-> Result<(), mmr::Error>
+		{
+			let leaves = leaves.into_iter().map(|leaf|
+				leaf.into_opaque_leaf()
+				.try_decode()
+				.ok_or(mmr::Error::Verify)).collect::<Result<Vec<mmr::LeafA>, mmr::Error>>()?;
+			MmrParaA::verify_leaves(leaves, proof)
+		}
+
+		fn verify_proof_stateless(
+			root: mmr::Hash,
+			leaves: Vec<mmr::EncodableOpaqueLeaf>,
+			proof: mmr::Proof<mmr::Hash>
+		) -> Result<(), mmr::Error> {
+			let nodes = leaves.into_iter().map(|leaf|mmr::DataOrHash::Data(leaf.into_opaque_leaf())).collect();
+			pallet_mmr::verify_leaves_proof::<mmr::Hashing, _>(root, nodes, proof)
+		}
+	}
+
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
 			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())

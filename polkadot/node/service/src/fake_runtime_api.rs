@@ -260,7 +260,7 @@ sp_api::impl_runtime_apis! {
 	}
 
 	impl sp_mmr_primitives::MmrApi<Block, Hash, BlockNumber> for Runtime {
-		fn mmr_root() -> Result<Hash, sp_mmr_primitives::Error> {
+		fn mmr_root(_mmr_id: u64) -> Result<Hash, sp_mmr_primitives::Error> {
 			unimplemented!()
 		}
 
@@ -271,6 +271,7 @@ sp_api::impl_runtime_apis! {
 		fn generate_proof(
 			_: Vec<BlockNumber>,
 			_: Option<BlockNumber>,
+			_mmr_id: u64,
 		) -> Result<(Vec<sp_mmr_primitives::EncodableOpaqueLeaf>, sp_mmr_primitives::Proof<Hash>), sp_mmr_primitives::Error> {
 			unimplemented!()
 		}

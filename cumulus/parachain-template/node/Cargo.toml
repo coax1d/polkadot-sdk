@@ -52,6 +52,7 @@ sp-runtime = { path = "../../../substrate/primitives/runtime" }
 sp-timestamp = { path = "../../../substrate/primitives/timestamp" }
 substrate-frame-rpc-system = { path = "../../../substrate/utils/frame/rpc/system" }
 substrate-prometheus-endpoint = { path = "../../../substrate/utils/prometheus" }
+mmr-rpc = { path = "../../../substrate/client/merkle-mountain-range/rpc" }
 
 # Polkadot
 polkadot-cli = { path = "../../../polkadot/cli", features = ["rococo-native"] }
