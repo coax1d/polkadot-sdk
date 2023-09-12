@@ -623,7 +623,7 @@ mod mmr {
 
 impl_runtime_apis! {
 
-	#[api_version(2)]
+	#[api_version(3)]
 	impl mmr::MmrApi<Block, mmr::Hash, BlockNumber> for Runtime {
 		fn mmr_root(mmr_id: u64) -> Result<mmr::Hash, mmr::Error> {
 			match mmr_id {
