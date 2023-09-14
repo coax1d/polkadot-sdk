@@ -1881,7 +1881,7 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	#[api_version(2)]
+	#[api_version(3)]
 	impl mmr::MmrApi<Block, mmr::Hash, BlockNumber> for Runtime {
 		fn mmr_root(_mmr_id: u64) -> Result<mmr::Hash, mmr::Error> {
 			Ok(Mmr::mmr_root())

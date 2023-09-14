@@ -167,10 +167,12 @@ where
 		&self,
 		leaf_indices: Vec<NodeIndex>,
 	) -> Result<(Vec<L>, primitives::Proof<HashOf<T, I>>), Error> {
+		// log::debug!(target: "runtime::mmr", "leaf_indices {:?}", leaf_indices);
 		let positions = leaf_indices
 			.iter()
 			.map(|index| mmr_lib::leaf_index_to_pos(*index))
 			.collect::<Vec<_>>();
+		// log::debug!(target: "runtime::mmr", "positions {:?}", positions);
 		let store = <Storage<OffchainStorage, T, I, L>>::default();
 		let leaves = positions
 			.iter()

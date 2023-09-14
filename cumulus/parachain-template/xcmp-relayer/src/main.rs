@@ -23,12 +23,12 @@ use mmr_rpc::LeavesProof;
 // use subxt_signer::sr25519::dev;
 
 /// The default endpoints for each
-const DEFAULT_ENDPOINT_PARA_SENDER: &str = "ws://localhost:9933";
-const DEFAULT_RPC_ENDPOINT_PARA_SENDER: &str = "http://localhost:9933";
-const DEFAULT_ENDPOINT_PARA_RECEIVER: &str = "ws://localhost:9944";
-const DEFAULT_RPC_ENDPOINT_PARA_RECEIVER: &str = "http://localhost:9944";
-const DEFAULT_ENDPOINT_RELAY: &str = "ws://localhost:9955";
-const DEFAULT_RPC_ENDPOINT_RELAY: &str = "http://localhost:9955";
+const DEFAULT_ENDPOINT_PARA_SENDER: &str = "ws://localhost:49481";
+const DEFAULT_RPC_ENDPOINT_PARA_SENDER: &str = "http://localhost:49481";
+const DEFAULT_ENDPOINT_PARA_RECEIVER: &str = "ws://localhost:49485";
+const DEFAULT_RPC_ENDPOINT_PARA_RECEIVER: &str = "http://localhost:49485";
+const DEFAULT_ENDPOINT_RELAY: &str = "ws://localhost:49465";
+const DEFAULT_RPC_ENDPOINT_RELAY: &str = "http://localhost:49465";
 
 #[derive(Clone, Debug)]
 pub struct MultiClient {
@@ -69,7 +69,6 @@ impl ClientType {
 	}
 }
 
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
 	env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -80,7 +79,14 @@ async fn main() -> anyhow::Result<()> {
 	let para_receiver_api = MultiClient::new(DEFAULT_ENDPOINT_PARA_RECEIVER, DEFAULT_RPC_ENDPOINT_PARA_RECEIVER).await?;
 	let relay_api = MultiClient::new(DEFAULT_ENDPOINT_RELAY, DEFAULT_RPC_ENDPOINT_RELAY).await?;
 
-	let gen_mmr_proof = generate_mmr_proof(&para_sender_api).await?;
+	let _ = generate_mmr_proof(&relay_api).await?;
+
+	// let _ = generate_mmr_root(&para_sender_api).await?;
+
+	// let _ = log_all_mmr_roots(&para_sender_api).await?;
+	let _ = log_all_mmr_proofs(&para_sender_api).await?;
+
+	let _ = log_all_mmr_proofs(&relay_api).await?;
 
 	let subscribe = log_all_blocks(&vec![para_sender_api, para_receiver_api, relay_api]).await?;
 
@@ -113,16 +119,68 @@ async fn log_all_blocks(clients: &[MultiClient]) -> anyhow::Result<()> {
 	Ok(())
 }
 
+async fn log_all_mmr_roots(client: &MultiClient) -> anyhow::Result<()> {
+	let client = client.clone();
+	task::spawn(async move {
+		let mut blocks_sub = client.subxt_client.blocks().subscribe_best().await?;
+		let para_id = 0u64;
+
+		while let Some(block) = blocks_sub.next().await {
+			let block = block?;
+			let params = rpc_params![Option::<Hash>::None, para_id];
+			let request: Option<Hash> = client.rpc_client.request("mmr_root", params).await?;
+			let hash = request.ok_or(RelayerError::Default)?;
+			log::info!("Mmr root for block_hash {:?}, block_number {:?} root {:?}", block.hash(), block.number(), hash);
+		}
+
+		Ok::<(), anyhow::Error>(())
+	});
+
+	Ok(())
+}
+
+async fn log_all_mmr_proofs(client: &MultiClient) -> anyhow::Result<()> {
+	let client = client.clone();
+	task::spawn(async move {
+		let mut blocks_sub = client.subxt_client.blocks().subscribe_best().await?;
+		let para_id = 0u64;
+
+		while let Some(block) = blocks_sub.next().await {
+			let block = block?;
+			let params = rpc_params![vec![block.number()], Option::<BlockNumber>::None, Option::<Hash>::None, para_id];
+			let request: Option<LeavesProof<Keccak256>> = client.rpc_client.request("mmr_generateProof", params).await?;
+			let proof = request.ok_or(RelayerError::Default)?;
+			log::info!("Mmr proof for block_hash {:?}, block_number {:?} root {:?}", block.hash(), block.number(), proof);
+		}
+
+		Ok::<(), anyhow::Error>(())
+	});
+
+	Ok(())
+}
+
 // Call generate mmr proof for sender
 async fn generate_mmr_proof(client: &MultiClient) -> anyhow::Result<LeavesProof<Keccak256>> {
 	let block = client.subxt_client.blocks().at_latest().await?;
 
-	let params = rpc_params![vec![block.number()], Option::<BlockNumber>::None, Option::<Hash>::None, 0u64];
+	let params = rpc_params![vec![10,15,20], block.number(), Option::<Hash>::None, 0u64];
 
 	let request: Option<LeavesProof<Keccak256>> = client.rpc_client.request("mmr_generateProof", params).await?;
 	let proof = request.ok_or(RelayerError::Default)?;
 	log::info!("Proof obtained:: {:?}", proof);
 	Ok(proof)
+}
+
+// Call generate mmr proof for sender
+async fn generate_mmr_root(client: &MultiClient) -> anyhow::Result<()> {
+	let block = client.subxt_client.blocks().at_latest().await?;
+
+	let params = rpc_params![Option::<Hash>::None, 0u64];
+
+	let request: Option<Hash> = client.rpc_client.request("mmr_root", params).await?;
+	let root = request.ok_or(RelayerError::Default)?;
+	log::info!("root obtained:: {:?}", root);
+	Ok(())
 }
 
 /// Takes a string and checks for a 0x prefix. Returns a string without a 0x prefix.

@@ -530,7 +530,8 @@ impl pallet_xcmp_message_stuffer::Config<ParaAChannel> for Runtime {
 
 type ParaAMmr = pallet_mmr::Instance1;
 impl pallet_mmr::Config<ParaAMmr> for Runtime {
-	const INDEXING_PREFIX: &'static [u8] = b"para_a_mmr";
+	// const INDEXING_PREFIX: &'static [u8] = b"para_a_mmr";
+	const INDEXING_PREFIX: &'static [u8] = sp_mmr_primitives::INDEXING_PREFIX;
 	type OnNewRoot = pallet_xcmp_message_stuffer::OnNewRootSatisfier<Runtime>;
 	type Hashing = Keccak256;
 	type LeafData = pallet_xcmp_message_stuffer::Pallet<Runtime, ParaAChannel>;
@@ -623,7 +624,7 @@ mod mmr {
 
 impl_runtime_apis! {
 
-	#[api_version(2)]
+	#[api_version(3)]
 	impl mmr::MmrApi<Block, mmr::Hash, BlockNumber> for Runtime {
 		fn mmr_root(mmr_id: u64) -> Result<mmr::Hash, mmr::Error> {
 			match mmr_id {
