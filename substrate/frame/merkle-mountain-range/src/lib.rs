@@ -226,6 +226,7 @@ pub mod pallet {
 			<T::OnNewRoot as primitives::OnNewRoot<_>>::on_new_root(&root);
 
 			<NumberOfLeaves<T, I>>::put(leaves);
+			log::debug!(target: "runtime::mmr", "number of leaves {:?}", Self::mmr_leaves());
 			<RootHash<T, I>>::put(root);
 
 			let peaks_after = sp_mmr_primitives::utils::NodesUtils::new(leaves).number_of_peaks();

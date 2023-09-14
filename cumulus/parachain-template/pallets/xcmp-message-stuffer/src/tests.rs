@@ -4,6 +4,7 @@ use frame_support::{assert_noop, assert_ok};
 use xcm::{latest::prelude::*, VersionedXcm, WrapVersion, MAX_XCM_DECODE_DEPTH};
 use xcm_executor::traits::ConvertOrigin;
 use xcm_builder::{CurrencyAdapter, IsConcrete, ParentIsPreset, NativeAsset, FixedWeightBounds};
+use sp_core::offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt};
 
 use sp_consensus_beefy::{
 	mmr::MmrLeafVersion,
@@ -15,6 +16,12 @@ use frame_support::traits::{OnInitialize, OnFinalize};
 use sp_core::Hasher;
 
 use cumulus_pallet_xcmp_queue::OutboundXcmpMessages;
+
+fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
+	let (offchain, _offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
+	ext.register_extension(OffchainDbExt::new(offchain.clone()));
+	ext.register_extension(OffchainWorkerExt::new(offchain));
+}
 
 fn read_mmr_leaf(ext: &mut TestExternalities, key: Vec<u8>) -> MmrLeaf {
 	type Node = pallet_mmr::primitives::DataOrHash<Keccak256, MmrLeaf>;
@@ -39,6 +46,23 @@ fn init_block(block: u64) {
 	MmrParaB::on_initialize(block);
 	MsgStufferA::on_initialize(block);
 	MsgStufferB::on_initialize(block);
+}
+
+fn new_block() -> Weight {
+	let number = frame_system::Pallet::<Test>::block_number() + 1;
+	let hash = H256::repeat_byte(number as u8);
+
+	frame_system::Pallet::<Test>::reset_events();
+	frame_system::Pallet::<Test>::initialize(&number, &hash, &Default::default());
+	MmrParaA::on_initialize(number);
+	MmrParaB::on_initialize(number)
+}
+
+fn add_blocks(blocks: usize) {
+	// given
+	for _ in 0..blocks {
+		new_block();
+	}
 }
 
 #[test]
@@ -192,5 +216,30 @@ fn verify_messages_stuffing_xcmp_messages_works() {
 			xcmp_msgs: <BlakeTwo256 as Hasher>::hash(&single_xcmp)
 		}
 	);
+
+}
+
+#[test]
+fn can_generate_proof() {
+	let mut ext = new_test_ext();
+	// given
+	let num_blocks: u64 = 7;
+	ext.execute_with(|| add_blocks(num_blocks as usize));
+	ext.persist_offchain_overlay();
+
+	// Try to generate proofs now. This requires the offchain extensions to be present
+	// to retrieve full leaf data.
+	register_offchain_ext(&mut ext);
+
+	ext.execute_with(|| {
+		let best_block_number = frame_system::Pallet::<Test>::block_number();
+		// when generate proofs for all leaves.
+		let proofs = (1_u64..=best_block_number)
+			.into_iter()
+			.map(|block_num| MmrParaA::generate_proof(vec![block_num], None).unwrap())
+			.collect::<Vec<_>>();
+
+		proofs.into_iter().for_each(|proof| println!("proof {:?}", proof));
+	});
 
 }
