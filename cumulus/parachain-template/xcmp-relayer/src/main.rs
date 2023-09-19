@@ -23,12 +23,12 @@ use mmr_rpc::LeavesProof;
 // use subxt_signer::sr25519::dev;
 
 /// The default endpoints for each
-const DEFAULT_ENDPOINT_PARA_SENDER: &str = "ws://localhost:49481";
-const DEFAULT_RPC_ENDPOINT_PARA_SENDER: &str = "http://localhost:49481";
-const DEFAULT_ENDPOINT_PARA_RECEIVER: &str = "ws://localhost:49485";
-const DEFAULT_RPC_ENDPOINT_PARA_RECEIVER: &str = "http://localhost:49485";
-const DEFAULT_ENDPOINT_RELAY: &str = "ws://localhost:49465";
-const DEFAULT_RPC_ENDPOINT_RELAY: &str = "http://localhost:49465";
+const DEFAULT_ENDPOINT_PARA_SENDER: &str = "ws://localhost:55729";
+const DEFAULT_RPC_ENDPOINT_PARA_SENDER: &str = "http://localhost:55729";
+const DEFAULT_ENDPOINT_PARA_RECEIVER: &str = "ws://localhost:55733";
+const DEFAULT_RPC_ENDPOINT_PARA_RECEIVER: &str = "http://localhost:55733";
+const DEFAULT_ENDPOINT_RELAY: &str = "ws://localhost:55713";
+const DEFAULT_RPC_ENDPOINT_RELAY: &str = "http://localhost:55713";
 
 #[derive(Clone, Debug)]
 pub struct MultiClient {
@@ -79,14 +79,11 @@ async fn main() -> anyhow::Result<()> {
 	let para_receiver_api = MultiClient::new(DEFAULT_ENDPOINT_PARA_RECEIVER, DEFAULT_RPC_ENDPOINT_PARA_RECEIVER).await?;
 	let relay_api = MultiClient::new(DEFAULT_ENDPOINT_RELAY, DEFAULT_RPC_ENDPOINT_RELAY).await?;
 
-	let _ = generate_mmr_proof(&relay_api).await?;
-
-	// let _ = generate_mmr_root(&para_sender_api).await?;
-
-	// let _ = log_all_mmr_roots(&para_sender_api).await?;
+	let _ = log_all_mmr_roots(&para_sender_api).await?;
 	let _ = log_all_mmr_proofs(&para_sender_api).await?;
+	// let _ = generate_mmr_proof(&para_sender_api).await?;
 
-	let _ = log_all_mmr_proofs(&relay_api).await?;
+	// let _ = log_all_mmr_proofs(&relay_api).await?;
 
 	let subscribe = log_all_blocks(&vec![para_sender_api, para_receiver_api, relay_api]).await?;
 
@@ -144,13 +141,29 @@ async fn log_all_mmr_proofs(client: &MultiClient) -> anyhow::Result<()> {
 	task::spawn(async move {
 		let mut blocks_sub = client.subxt_client.blocks().subscribe_best().await?;
 		let para_id = 0u64;
+		let mut proof_sizes = Vec::<u64>::new();
+		let mut mmr_blocks_to_query = vec![1u64];
+		let mut mmr_blocks_benchmark_counter = 1u64;
+
+		// benchmark
+		// growable vec that after some delay time adds another index to the vec and makes the rpc request.
+		// and takes the length of the proof vec and sees the average difference from the previous proof vec len
+		// and the current. So just stick proof len minus previous proof len in a vector
+		// and then log the mean(sum over all elements and divide by num elems)
 
 		while let Some(block) = blocks_sub.next().await {
 			let block = block?;
-			let params = rpc_params![vec![block.number()], Option::<BlockNumber>::None, Option::<Hash>::None, para_id];
-			let request: Option<LeavesProof<Keccak256>> = client.rpc_client.request("mmr_generateProof", params).await?;
+			let params = rpc_params![mmr_blocks_to_query.clone(), Option::<BlockNumber>::None, Option::<Hash>::None, para_id];
+			let request: Option<LeavesProof<H256>> = client.rpc_client.request("mmr_generateProof", params).await?;
 			let proof = request.ok_or(RelayerError::Default)?;
-			log::info!("Mmr proof for block_hash {:?}, block_number {:?} root {:?}", block.hash(), block.number(), proof);
+			mmr_blocks_to_query.push(mmr_blocks_benchmark_counter);
+			mmr_blocks_benchmark_counter += 1;
+
+			let curr_proof_size = proof.proof.len() as u64;
+			proof_sizes.push(curr_proof_size);
+			let mean = do_mean(&proof_sizes).await?;
+			log::info!("num of mmr blocks: {}, counter value: {}, proof_size: {}, curr_avg_proof_size: {}", mmr_blocks_to_query.len(), mmr_blocks_benchmark_counter, curr_proof_size, mean);
+			log::info!("Mmr proof for block_hash {:?}, block_number {:?}, proof {:?}", block.hash(), block.number(), proof);
 		}
 
 		Ok::<(), anyhow::Error>(())
@@ -159,13 +172,21 @@ async fn log_all_mmr_proofs(client: &MultiClient) -> anyhow::Result<()> {
 	Ok(())
 }
 
+async fn do_mean(vec: &[u64]) -> anyhow::Result<u64> {
+	let mut sum = 0u64;
+	let mut len = vec.len() as u64;
+	vec.iter().for_each(|difference| sum += difference);
+	Ok(sum / len)
+}
+
 // Call generate mmr proof for sender
-async fn generate_mmr_proof(client: &MultiClient) -> anyhow::Result<LeavesProof<Keccak256>> {
+async fn generate_mmr_proof(client: &MultiClient) -> anyhow::Result<LeavesProof<H256>> {
 	let block = client.subxt_client.blocks().at_latest().await?;
 
-	let params = rpc_params![vec![10,15,20], block.number(), Option::<Hash>::None, 0u64];
+	// let params = rpc_params![vec![10,15,20], block.number(), Option::<Hash>::None, 0u64];
+	let params = rpc_params![vec![block.number() - 1], Option::<BlockNumber>::None, Option::<Hash>::None, 0u64];
 
-	let request: Option<LeavesProof<Keccak256>> = client.rpc_client.request("mmr_generateProof", params).await?;
+	let request: Option<LeavesProof<H256>> = client.rpc_client.request("mmr_generateProof", params).await?;
 	let proof = request.ok_or(RelayerError::Default)?;
 	log::info!("Proof obtained:: {:?}", proof);
 	Ok(proof)
