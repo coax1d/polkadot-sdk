@@ -20,6 +20,7 @@ use cumulus_client_service::{
 };
 use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
+use mmr_gadget::MmrGadget;
 
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
@@ -162,6 +163,7 @@ async fn start_node_impl(
 	let params = new_partial(&parachain_config)?;
 	let (block_import, mut telemetry, telemetry_worker_handle) = params.other;
 	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+	let is_offchain_indexing_enabled = parachain_config.offchain_worker.indexing_enabled;
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
@@ -244,7 +246,7 @@ async fn start_node_impl(
 		task_manager: &mut task_manager,
 		config: parachain_config,
 		keystore: params.keystore_container.keystore(),
-		backend,
+		backend: backend.clone(),
 		network: network.clone(),
 		sync_service: sync_service.clone(),
 		system_rpc_tx,
@@ -277,6 +279,18 @@ async fn start_node_impl(
 		let sync_service = sync_service.clone();
 		Arc::new(move |hash, data| sync_service.announce_block(hash, data))
 	};
+
+	if is_offchain_indexing_enabled {
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"mmr_gadget",
+			None,
+			MmrGadget::start(
+				client.clone(),
+				backend,
+				sp_mmr_primitives::INDEXING_PREFIX.to_vec(),
+			)
+		);
+	}
 
 	let relay_chain_slot_duration = Duration::from_secs(6);
 

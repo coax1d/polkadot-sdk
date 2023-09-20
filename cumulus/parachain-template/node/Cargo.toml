@@ -53,6 +53,8 @@ sp-timestamp = { path = "../../../substrate/primitives/timestamp" }
 substrate-frame-rpc-system = { path = "../../../substrate/utils/frame/rpc/system" }
 substrate-prometheus-endpoint = { path = "../../../substrate/utils/prometheus" }
 mmr-rpc = { path = "../../../substrate/client/merkle-mountain-range/rpc" }
+mmr-gadget = { path = "../../../substrate/client/merkle-mountain-range" }
+sp-mmr-primitives = { path = "../../../substrate/primitives/merkle-mountain-range" }
 
 # Polkadot
 polkadot-cli = { path = "../../../polkadot/cli", features = ["rococo-native"] }
