@@ -23,12 +23,12 @@ use mmr_rpc::LeavesProof;
 // use subxt_signer::sr25519::dev;
 
 /// The default endpoints for each
-const DEFAULT_ENDPOINT_PARA_SENDER: &str = "ws://localhost:55729";
-const DEFAULT_RPC_ENDPOINT_PARA_SENDER: &str = "http://localhost:55729";
-const DEFAULT_ENDPOINT_PARA_RECEIVER: &str = "ws://localhost:55733";
-const DEFAULT_RPC_ENDPOINT_PARA_RECEIVER: &str = "http://localhost:55733";
-const DEFAULT_ENDPOINT_RELAY: &str = "ws://localhost:55713";
-const DEFAULT_RPC_ENDPOINT_RELAY: &str = "http://localhost:55713";
+const DEFAULT_ENDPOINT_PARA_SENDER: &str = "ws://localhost:54888";
+const DEFAULT_RPC_ENDPOINT_PARA_SENDER: &str = "http://localhost:54888";
+const DEFAULT_ENDPOINT_PARA_RECEIVER: &str = "ws://localhost:54887";
+const DEFAULT_RPC_ENDPOINT_PARA_RECEIVER: &str = "http://localhost:54887";
+const DEFAULT_ENDPOINT_RELAY: &str = "ws://localhost:54886";
+const DEFAULT_RPC_ENDPOINT_RELAY: &str = "http://localhost:54886";
 
 #[derive(Clone, Debug)]
 pub struct MultiClient {
