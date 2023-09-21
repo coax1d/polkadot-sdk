@@ -483,7 +483,7 @@ impl pallet_collator_selection::Config for Runtime {
 
 pub struct XcmpDataProvider;
 impl XcmpMessageProvider<Hash> for XcmpDataProvider {
-	type XcmpMessages = Hash;
+	type XcmpMessages = Vec<u8>;
 
 	fn get_xcmp_messages(block_hash: Hash, para_id: ParaId) -> Self::XcmpMessages {
 		// TODO: Temporarily we aggregate all the fragments destined to a particular
@@ -496,8 +496,7 @@ impl XcmpMessageProvider<Hash> for XcmpDataProvider {
 			counter += 1;
 		}
 
-		// TODO: Remove this default and add in some kind of Error/Default if there are no XCMP messages to insert into the MMR?
-		BlakeTwo256::hash(&msg_buffer[..])
+		msg_buffer
 	}
 }
 
