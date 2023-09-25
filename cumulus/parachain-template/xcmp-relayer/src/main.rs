@@ -81,13 +81,22 @@ async fn main() -> anyhow::Result<()> {
 
 	let _ = log_all_mmr_roots(&para_sender_api).await?;
 	let _ = log_all_mmr_proofs(&para_sender_api).await?;
-	// let _ = generate_mmr_proof(&para_sender_api).await?;
-
-	// let _ = log_all_mmr_proofs(&relay_api).await?;
+	let _ = get_proof_and_verify(&para_sender_api).await?;
 
 	let subscribe = log_all_blocks(&vec![para_sender_api, para_receiver_api, relay_api]).await?;
 
 	std::future::pending::<()>().await;
+	Ok(())
+}
+
+async fn get_proof_and_verify(client: &MultiClient) -> anyhow::Result<()> {
+	let root = generate_mmr_root(&client).await?;
+	let proof = generate_mmr_proof(&client).await?;
+	let params = rpc_params![root, proof];
+
+	let request: Option<bool> = client.rpc_client.request("mmr_verifyProofStateless", params).await?;
+	let verification = request.ok_or(RelayerError::Default)?;
+	log::info!("Was proof verified? Answer:: {}", verification);
 	Ok(())
 }
 
@@ -184,7 +193,7 @@ async fn generate_mmr_proof(client: &MultiClient) -> anyhow::Result<LeavesProof<
 	let block = client.subxt_client.blocks().at_latest().await?;
 
 	// let params = rpc_params![vec![10,15,20], block.number(), Option::<Hash>::None, 0u64];
-	let params = rpc_params![vec![block.number() - 1], Option::<BlockNumber>::None, Option::<Hash>::None, 0u64];
+	let params = rpc_params![vec![1,2,3,4], Option::<BlockNumber>::None, Option::<Hash>::None, 0u64];
 
 	let request: Option<LeavesProof<H256>> = client.rpc_client.request("mmr_generateProof", params).await?;
 	let proof = request.ok_or(RelayerError::Default)?;
@@ -193,7 +202,7 @@ async fn generate_mmr_proof(client: &MultiClient) -> anyhow::Result<LeavesProof<
 }
 
 // Call generate mmr proof for sender
-async fn generate_mmr_root(client: &MultiClient) -> anyhow::Result<()> {
+async fn generate_mmr_root(client: &MultiClient) -> anyhow::Result<H256> {
 	let block = client.subxt_client.blocks().at_latest().await?;
 
 	let params = rpc_params![Option::<Hash>::None, 0u64];
@@ -201,7 +210,7 @@ async fn generate_mmr_root(client: &MultiClient) -> anyhow::Result<()> {
 	let request: Option<Hash> = client.rpc_client.request("mmr_root", params).await?;
 	let root = request.ok_or(RelayerError::Default)?;
 	log::info!("root obtained:: {:?}", root);
-	Ok(())
+	Ok(root)
 }
 
 /// Takes a string and checks for a 0x prefix. Returns a string without a 0x prefix.
