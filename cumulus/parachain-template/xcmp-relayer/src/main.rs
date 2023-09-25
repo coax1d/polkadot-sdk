@@ -192,7 +192,6 @@ async fn do_mean(vec: &[u64]) -> anyhow::Result<u64> {
 async fn generate_mmr_proof(client: &MultiClient) -> anyhow::Result<LeavesProof<H256>> {
 	let block = client.subxt_client.blocks().at_latest().await?;
 
-	// let params = rpc_params![vec![10,15,20], block.number(), Option::<Hash>::None, 0u64];
 	let params = rpc_params![vec![1,2,3,4], Option::<BlockNumber>::None, Option::<Hash>::None, 0u64];
 
 	let request: Option<LeavesProof<H256>> = client.rpc_client.request("mmr_generateProof", params).await?;

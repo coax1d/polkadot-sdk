@@ -22,6 +22,7 @@ frame-system = { path = "../../../../substrate/frame/system", default-features =
 pallet-mmr = { path = "../../../../substrate/frame/merkle-mountain-range", default-features = false }
 sp-consensus-beefy = { path = "../../../../substrate/primitives/consensus/beefy", default-features = false }
 sp-core = { path = "../../../../substrate/primitives/core", default-features = false}
+sp-runtime = { path = "../../../../substrate/primitives/runtime", default-features = false }
 
 cumulus-primitives-core = { path = "../../../primitives/core", default-features = false }
 
@@ -64,6 +65,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
     "sp-consensus-beefy/std",
+	"sp-runtime/std",
 	"xcm/std",
 	"xcm-executor/std",
 	"xcm-builder/std",

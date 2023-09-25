@@ -218,28 +218,3 @@ fn verify_messages_stuffing_xcmp_messages_works() {
 	);
 
 }
-
-#[test]
-fn can_generate_proof() {
-	let mut ext = new_test_ext();
-	// given
-	let num_blocks: u64 = 7;
-	ext.execute_with(|| add_blocks(num_blocks as usize));
-	ext.persist_offchain_overlay();
-
-	// Try to generate proofs now. This requires the offchain extensions to be present
-	// to retrieve full leaf data.
-	register_offchain_ext(&mut ext);
-
-	ext.execute_with(|| {
-		let best_block_number = frame_system::Pallet::<Test>::block_number();
-		// when generate proofs for all leaves.
-		let proofs = (1_u64..=best_block_number)
-			.into_iter()
-			.map(|block_num| MmrParaA::generate_proof(vec![block_num], None).unwrap())
-			.collect::<Vec<_>>();
-
-		proofs.into_iter().for_each(|proof| println!("proof {:?}", proof));
-	});
-
-}

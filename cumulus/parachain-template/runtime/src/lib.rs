@@ -483,12 +483,16 @@ impl pallet_collator_selection::Config for Runtime {
 
 pub struct XcmpDataProvider;
 impl XcmpMessageProvider<Hash> for XcmpDataProvider {
+	// TODO: Perhaps Instead this can be actual Vec<VersionedXcm>? They get stored offchain regardless
+	// Or we have a seperator byte that goes between each encoded XCM message that we we can deal
+	// with decoding the blob correctly later? Perhaps seperator special byte sequence then followed by
+	// the Xcm Message type in the form of an enum tag then you know which XCM to decode it to.
+	// Is there an easier way? Perhaps how it is already being done in HRMP..
 	type XcmpMessages = Vec<u8>;
 
 	fn get_xcmp_messages(block_hash: Hash, para_id: ParaId) -> Self::XcmpMessages {
 		// TODO: Temporarily we aggregate all the fragments destined to a particular
-		// Parachain per block and hash them and stick that into the mmr otherwise need a way
-		// of adding multiple MMR leaves per block to the MMR (Which for now means editing the mmr impl?)
+		// Parachain per block
 		let mut msg_buffer = Vec::new();
 		let mut counter = 0u16;
 		while let Ok(buffer) = OutboundXcmpMessages::<Runtime>::try_get(para_id, counter) {
@@ -525,11 +529,11 @@ impl pallet_xcmp_message_stuffer::Config<ParaAChannel> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type LeafVersion = LeafVersion;
 	type XcmpDataProvider = XcmpDataProvider;
+	type RelayerOrigin = EnsureRoot<AccountId>;
 }
 
 type ParaAMmr = pallet_mmr::Instance1;
 impl pallet_mmr::Config<ParaAMmr> for Runtime {
-	// const INDEXING_PREFIX: &'static [u8] = b"para_a_mmr";
 	const INDEXING_PREFIX: &'static [u8] = sp_mmr_primitives::INDEXING_PREFIX;
 	type OnNewRoot = pallet_xcmp_message_stuffer::OnNewRootSatisfier<Runtime>;
 	type Hashing = Keccak256;
@@ -547,10 +551,13 @@ impl pallet_xcmp_message_stuffer::Config<ParaBChannel> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type LeafVersion = LeafVersion;
 	type XcmpDataProvider = XcmpDataProvider;
+	type RelayerOrigin = EnsureRoot<AccountId>;
 }
 
 type ParaBMmr = pallet_mmr::Instance2;
 impl pallet_mmr::Config<ParaBMmr> for Runtime {
+	// TODO: This is an issue because the indexing API
+	// hardcodes sp_mmr_primitives::INDEXING_PREFIX into the offchain DB
 	const INDEXING_PREFIX: &'static [u8] = b"para_b_mmr";
 	type OnNewRoot = pallet_xcmp_message_stuffer::OnNewRootSatisfier<Runtime>;
 	type Hashing = Keccak256;
