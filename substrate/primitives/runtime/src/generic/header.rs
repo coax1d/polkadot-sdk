@@ -167,6 +167,134 @@ where
 	}
 }
 
+/// Abstraction over a block header for a substrate chain.
+#[derive(Encode, Decode, PartialEq, Eq, Clone, sp_core::RuntimeDebug, TypeInfo)]
+#[scale_info(skip_type_params(Hash))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct ParaHeader<Number: Copy + Into<U256> + TryFrom<U256>, Hash: HashT> {
+	/// The parent hash.
+	pub parent_hash: Hash::Output,
+	/// The block number.
+	#[cfg_attr(
+		feature = "serde",
+		serde(serialize_with = "serialize_number", deserialize_with = "deserialize_number")
+	)]
+	#[codec(compact)]
+	pub number: Number,
+	/// The state trie merkle root
+	pub state_root: Hash::Output,
+	/// The merkle root of the extrinsics.
+	pub extrinsics_root: Hash::Output,
+	/// A chain-specific digest of data useful for light clients or referencing auxiliary data.
+	pub digest: Digest,
+	/// XcmpChannelRoot to for proving offchain XCMP messages
+	pub xcmp_channel_root: Hash::Output,
+}
+
+impl<Number, Hash> traits::Header for ParaHeader<Number, Hash>
+where
+	Number: Member
+		+ MaybeSerializeDeserialize
+		+ MaybeFromStr
+		+ Debug
+		+ Default
+		+ sp_std::hash::Hash
+		+ MaybeDisplay
+		+ AtLeast32BitUnsigned
+		+ FullCodec
+		+ Copy
+		+ MaxEncodedLen
+		+ Into<U256>
+		+ TryFrom<U256>
+		+ TypeInfo,
+	Hash: HashT,
+{
+	type Number = Number;
+	type Hash = <Hash as HashT>::Output;
+	type Hashing = Hash;
+
+	fn new(
+		number: Self::Number,
+		extrinsics_root: Self::Hash,
+		state_root: Self::Hash,
+		parent_hash: Self::Hash,
+		digest: Digest,
+	) -> Self {
+		Self { number, extrinsics_root, state_root, parent_hash, digest, xcmp_channel_root: Default::default() }
+	}
+
+	fn number(&self) -> &Self::Number {
+		&self.number
+	}
+
+	fn set_number(&mut self, num: Self::Number) {
+		self.number = num;
+	}
+
+	fn extrinsics_root(&self) -> &Self::Hash {
+		&self.extrinsics_root
+	}
+
+	fn set_extrinsics_root(&mut self, root: Self::Hash) {
+		self.extrinsics_root = root
+	}
+	fn state_root(&self) -> &Self::Hash {
+		&self.state_root
+	}
+
+	fn set_state_root(&mut self, root: Self::Hash) {
+		self.state_root = root
+	}
+	fn parent_hash(&self) -> &Self::Hash {
+		&self.parent_hash
+	}
+
+	fn set_parent_hash(&mut self, hash: Self::Hash) {
+		self.parent_hash = hash
+	}
+
+	fn digest(&self) -> &Digest {
+		&self.digest
+	}
+
+	fn digest_mut(&mut self) -> &mut Digest {
+		#[cfg(feature = "std")]
+		log::debug!(target: "header", "Retrieving mutable reference to digest");
+		&mut self.digest
+	}
+
+	// fn xcmp_channel_root(&self) -> &Self::Hash {
+	// 	&self.xcmp_channel_root
+	// }
+
+	// fn set_xcmp_channel_root(&mut self, root: Self::Hash) {
+	// 	self.xcmp_channel_root = root;
+	// }
+}
+
+
+
+impl<Number, Hash> ParaHeader<Number, Hash>
+where
+	Number: Member
+		+ sp_std::hash::Hash
+		+ Copy
+		+ MaybeDisplay
+		+ AtLeast32BitUnsigned
+		+ Codec
+		+ Into<U256>
+		+ TryFrom<U256>,
+	Hash: HashT,
+{
+	/// Convenience helper for computing the hash of the header without having
+	/// to import the trait.
+	pub fn hash(&self) -> Hash::Output {
+		Hash::hash_of(self)
+	}
+}
+
 #[cfg(all(test, feature = "std"))]
 mod tests {
 	use super::*;
