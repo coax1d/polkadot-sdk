@@ -264,14 +264,43 @@ where
 		log::debug!(target: "header", "Retrieving mutable reference to digest");
 		&mut self.digest
 	}
+}
 
-	// fn xcmp_channel_root(&self) -> &Self::Hash {
-	// 	&self.xcmp_channel_root
-	// }
+pub trait XcmpRootChanger {
+	type Hash;
+	fn xcmp_channel_root(&self) -> &Self::Hash;
+	fn set_xcmp_channel_root(&mut self, root: Self::Hash);
+}
 
-	// fn set_xcmp_channel_root(&mut self, root: Self::Hash) {
-	// 	self.xcmp_channel_root = root;
-	// }
+impl<Number, Hash> XcmpRootChanger for ParaHeader<Number, Hash>
+where
+	Number: Member
+		+ MaybeSerializeDeserialize
+		+ MaybeFromStr
+		+ Debug
+		+ Default
+		+ sp_std::hash::Hash
+		+ MaybeDisplay
+		+ AtLeast32BitUnsigned
+		+ FullCodec
+		+ Copy
+		+ MaxEncodedLen
+		+ Into<U256>
+		+ TryFrom<U256>
+		+ TypeInfo,
+	Hash: HashT,
+{
+
+
+	type Hash = <Hash as HashT>::Output;
+
+	fn xcmp_channel_root(&self) -> &Self::Hash {
+		&self.xcmp_channel_root
+	}
+
+	fn set_xcmp_channel_root(&mut self, root: Self::Hash) {
+		self.xcmp_channel_root = root;
+	}
 }
 
 
