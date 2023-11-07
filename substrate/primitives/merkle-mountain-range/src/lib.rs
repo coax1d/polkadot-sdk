@@ -361,7 +361,7 @@ pub struct Proof<Hash> {
 
 /// Merkle Mountain Range operation error.
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
-#[derive(RuntimeDebug, codec::Encode, codec::Decode, PartialEq, Eq, TypeInfo)]
+#[derive(Debug, codec::Encode, codec::Decode, PartialEq, Eq, TypeInfo)]
 pub enum Error {
 	/// Error during translation of a block number into a leaf index.
 	#[cfg_attr(feature = "std", error("Error performing numeric op"))]
