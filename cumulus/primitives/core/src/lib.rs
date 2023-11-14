@@ -286,6 +286,36 @@ pub mod rpsr_digest {
 	}
 }
 
+/// Handling the 'XcmpChannelMerkleRoot' as a digest item
+#[doc(hidden)]
+pub mod xcmr_digest {
+	use super::{ConsensusEngineId, Decode, Digest, DigestItem};
+
+	/// consensus engine ID for xcmp channel merkle root digests.
+	pub const XCMR_CONSENSUS_ID: ConsensusEngineId = *b"XCMR";
+
+	/// Construct digest item
+	pub fn xcmp_channel_merkle_root_item<H: sp_runtime::traits::HashOutput>(
+		root: H
+	) -> DigestItem {
+		DigestItem::Consensus(XCMR_CONSENSUS_ID, root.encode())
+	}
+
+	/// Extract the `XcmpChannelMerkleRoot` from a header digest
+	/// Returns `None` if none was found.
+	pub fn extract_xcmp_channel_merkle_root<H: sp_runtime::traits::HashOutput>(
+		digest: &Digest,
+	) -> Option<H> {
+		digest.convert_first(|d| match d {
+			DigestItem::Consensus(id, val) if id == &XCMR_CONSENSUS_ID => {
+				let h = Decode::decode(&mut &val[..]).ok()?;
+				Some(h)
+			},
+			_ => None,
+		})
+	}
+}
+
 /// Information about a collation.
 ///
 /// This was used in version 1 of the [`CollectCollationInfo`] runtime api.
