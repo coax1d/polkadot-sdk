@@ -32,7 +32,8 @@ use cumulus_primitives_core::{
 	relay_chain, AbridgedHostConfiguration, ChannelStatus, CollationInfo, DmpMessageHandler,
 	GetChannelInfo, InboundDownwardMessage, InboundHrmpMessage, MessageSendError,
 	OutboundHrmpMessage, ParaId, PersistedValidationData, UpwardMessage, UpwardMessageSender,
-	XcmpMessageHandler, XcmpMessageSource,
+	XcmpMessageHandler, XcmpMessageSource, CollectXcmpChannelMmrRoots,
+	xcmr_digest::xcmp_channel_merkle_root_item,
 };
 use cumulus_primitives_parachain_inherent::{MessageQueueChain, ParachainInherentData};
 use frame_support::{
@@ -207,6 +208,9 @@ pub mod pallet {
 
 		/// The weight we reserve at the beginning of the block for processing DMP messages.
 		type ReservedDmpWeight: Get<Weight>;
+
+		/// Gets all Channel Mmr Roots together into a single binary merkle tree to stick in Para Header Digest
+		type XcmpChannelRootCollector: CollectXcmpChannelMmrRoots;
 
 		/// The message handler that will be invoked when messages are received via XCMP.
 		///
@@ -391,6 +395,11 @@ pub mod pallet {
 				UnincludedSegment::<T>::append(ancestor);
 			}
 			HrmpOutboundMessages::<T>::put(outbound_messages);
+
+			let xcmp_channel_root = <T::XcmpChannelRootCollector as CollectXcmpChannelMmrRoots>::collect_roots();
+			frame_system::Pallet::<T>::deposit_log(
+				xcmp_channel_merkle_root_item(xcmp_channel_root)
+			);
 		}
 
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {

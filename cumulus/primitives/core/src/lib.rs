@@ -316,6 +316,11 @@ pub mod xcmr_digest {
 	}
 }
 
+pub trait CollectXcmpChannelMmrRoots {
+	type XcmpChannelMerkleRoot: sp_runtime::traits::HashOutput;
+	fn collect_roots() -> Self::XcmpChannelMerkleRoot;
+}
+
 /// Information about a collation.
 ///
 /// This was used in version 1 of the [`CollectCollationInfo`] runtime api.
