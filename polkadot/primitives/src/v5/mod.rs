@@ -189,6 +189,12 @@ pub mod well_known_keys {
 	pub const ACTIVE_CONFIG: &[u8] =
 		&hex!["06de3d8a54d27e44a9d5ce189618f22db4b49d95320d9021994c850f25b8e385"];
 
+	/// Current BeefyMmrRoot
+	///
+	/// The storage entry stored is an Mmr Root(single Hash) for Beefy.
+	pub const BEEFY_MMR_ROOT: &[u8] =
+		&hex!["06de3d8a54d27e44a9d5ce189618f22db4b49d95320d9021994c850f25b8e383"]; // TODO Replace with actual key prefix
+
 	/// Hash of the committed head data for a given registered para.
 	///
 	/// The storage entry stores wrapped `HeadData(Vec<u8>)`.

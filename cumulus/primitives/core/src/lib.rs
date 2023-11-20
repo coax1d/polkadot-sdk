@@ -321,6 +321,11 @@ pub trait CollectXcmpChannelMmrRoots {
 	fn collect_roots() -> Self::XcmpChannelMerkleRoot;
 }
 
+pub trait GetBeefyRoot {
+	type Root;
+	fn get_root() -> Option<Self::Root>;
+}
+
 /// Information about a collation.
 ///
 /// This was used in version 1 of the [`CollectCollationInfo`] runtime api.

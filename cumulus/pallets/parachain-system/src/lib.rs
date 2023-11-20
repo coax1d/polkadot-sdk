@@ -32,7 +32,7 @@ use cumulus_primitives_core::{
 	relay_chain, AbridgedHostConfiguration, ChannelStatus, CollationInfo, DmpMessageHandler,
 	GetChannelInfo, InboundDownwardMessage, InboundHrmpMessage, MessageSendError,
 	OutboundHrmpMessage, ParaId, PersistedValidationData, UpwardMessage, UpwardMessageSender,
-	XcmpMessageHandler, XcmpMessageSource, CollectXcmpChannelMmrRoots,
+	XcmpMessageHandler, XcmpMessageSource, CollectXcmpChannelMmrRoots, GetBeefyRoot,
 	xcmr_digest::xcmp_channel_merkle_root_item,
 };
 use cumulus_primitives_parachain_inherent::{MessageQueueChain, ParachainInherentData};
@@ -979,6 +979,19 @@ impl<T: Config> Pallet<T> {
 	pub fn unincluded_segment_size_after(included_hash: T::Hash) -> u32 {
 		let segment = UnincludedSegment::<T>::get();
 		crate::unincluded_segment::size_after_included(included_hash, &segment)
+	}
+}
+
+impl<T: Config> GetBeefyRoot for Pallet<T> {
+	type Root = sp_core::H256;
+	fn get_root() -> Option<Self::Root> {
+		match Self::relevant_messaging_state() {
+			None => {
+				log::warn!("calling `get_root` for beefy root with no RelevantMessagingState?!");
+				None
+			},
+			Some(d) => Some(d.beefy_mmr_root),
+		}
 	}
 }
 

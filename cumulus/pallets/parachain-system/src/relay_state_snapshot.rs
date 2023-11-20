@@ -68,6 +68,9 @@ pub struct MessagingStateSnapshot {
 	///
 	/// The channels are sorted by the recipient para id ascension.
 	pub egress_channels: Vec<(ParaId, AbridgedHrmpChannel)>,
+
+	/// The current BeefyMmrRoot for Xcmp proofs to be submitted against.
+	pub beefy_mmr_root: relay_chain::Hash,
 }
 
 #[derive(Debug)]
@@ -98,6 +101,8 @@ pub enum Error {
 	HrmpChannel(ParaId, ParaId, ReadEntryErr),
 	/// The latest included parachain head cannot be extracted.
 	ParaHead(ReadEntryErr),
+	/// The BeefyMmrRoot cannot be extracted.
+	BeefyMmrRoot(ReadEntryErr),
 }
 
 #[derive(Debug)]
@@ -265,6 +270,14 @@ impl RelayChainStateProof {
 			egress_channels.push((recipient, hrmp_channel));
 		}
 
+		let beefy_mmr_root = read_entry(
+			&self.trie_backend,
+			&relay_chain::well_known_keys::BEEFY_MMR_ROOT,
+			None
+		)
+		// .map_err(|read_err| Error::BeefyMmrRoot(read_err))?;
+		.unwrap_or(sp_core::H256::zero()); // TODO: Temporary REMOVE.. we want above in the real case
+
 		// NOTE that ingress_channels and egress_channels promise to be sorted. We satisfy this
 		// property by relying on the fact that `ingress_channel_index` and `egress_channel_index`
 		// are themselves sorted.
@@ -273,6 +286,7 @@ impl RelayChainStateProof {
 			relay_dispatch_queue_remaining_capacity,
 			ingress_channels,
 			egress_channels,
+			beefy_mmr_root,
 		})
 	}
 
