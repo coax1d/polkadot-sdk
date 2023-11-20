@@ -275,8 +275,7 @@ impl RelayChainStateProof {
 			&relay_chain::well_known_keys::BEEFY_MMR_ROOT,
 			None
 		)
-		// .map_err(|read_err| Error::BeefyMmrRoot(read_err))?;
-		.unwrap_or(sp_core::H256::zero()); // TODO: Temporary REMOVE.. we want above in the real case
+		.map_err(|read_err| Error::BeefyMmrRoot(read_err))?;
 
 		// NOTE that ingress_channels and egress_channels promise to be sorted. We satisfy this
 		// property by relying on the fact that `ingress_channel_index` and `egress_channel_index`
