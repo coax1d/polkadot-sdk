@@ -273,9 +273,10 @@ impl RelayChainStateProof {
 		let beefy_mmr_root = read_entry(
 			&self.trie_backend,
 			&relay_chain::well_known_keys::BEEFY_MMR_ROOT,
-			None
+			Some(sp_core::H256::zero()),
 		)
-		.map_err(|read_err| Error::BeefyMmrRoot(read_err))?;
+		// .map_err(|read_err| Error::BeefyMmrRoot(read_err))?;
+		.unwrap_or(sp_core::H256::zero());
 
 		// NOTE that ingress_channels and egress_channels promise to be sorted. We satisfy this
 		// property by relying on the fact that `ingress_channel_index` and `egress_channel_index`
