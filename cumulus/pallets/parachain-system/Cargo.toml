@@ -17,6 +17,7 @@ scale-info = { version = "2.9.0", default-features = false, features = ["derive"
 # Substrate
 frame-support = { path = "../../../substrate/frame/support", default-features = false}
 frame-system = { path = "../../../substrate/frame/system", default-features = false}
+sp-api = { path = "../../../substrate/primitives/api", default-features = false }
 sp-core = { path = "../../../substrate/primitives/core", default-features = false}
 sp-externalities = { path = "../../../substrate/primitives/externalities", default-features = false}
 sp-inherents = { path = "../../../substrate/primitives/inherents", default-features = false}

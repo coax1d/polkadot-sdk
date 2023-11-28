@@ -3558,6 +3558,7 @@ dependencies = [
  "polkadot-parachain-primitives",
  "sc-client-api",
  "scale-info",
+ "sp-api",
  "sp-core",
  "sp-externalities",
  "sp-inherents",

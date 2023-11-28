@@ -985,13 +985,13 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> GetBeefyRoot for Pallet<T> {
 	type Root = sp_core::H256;
 	fn get_root() -> Option<Self::Root> {
-		match Self::relevant_messaging_state() {
-			None => {
-				log::warn!("calling `get_root` for beefy root with no RelevantMessagingState?!");
-				None
-			},
-			Some(d) => Some(d.beefy_mmr_root),
-		}
+		Self::relevant_messaging_state().map(|d| {
+			d.beefy_mmr_root
+		})
+		.or_else(|| {
+			log::warn!("calling `get_root` for beefy root with no RelevantMessagingState?!");
+			None
+		})
 	}
 }
 
@@ -1689,4 +1689,14 @@ impl<T: Config> BlockNumberProvider for RelaychainDataProvider<T> {
 		validation_data.relay_parent_number = block;
 		ValidationData::<T>::put(validation_data)
 	}
+}
+
+sp_api::decl_runtime_apis! {
+	// For retrieving current BeefyMmrRoot for Relayers to use for building proofs
+	pub trait MessagingApi<T>
+	where
+		T: GetBeefyRoot
+		{
+			fn get_current_beefy_root() -> <T as GetBeefyRoot>::Root;
+		}
 }
