@@ -13,6 +13,7 @@ sp-api = { path = "../../../substrate/primitives/api", default-features = false}
 sp-runtime = { path = "../../../substrate/primitives/runtime", default-features = false}
 sp-std = { path = "../../../substrate/primitives/std", default-features = false}
 sp-trie = { path = "../../../substrate/primitives/trie", default-features = false}
+sp-core = { path = "../../../substrate/primitives/core", default-features = false}
 
 # Polkadot
 polkadot-core-primitives = { path = "../../../polkadot/core-primitives", default-features = false}
