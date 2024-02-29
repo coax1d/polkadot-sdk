@@ -196,6 +196,46 @@ pub enum ParaLifecycle {
 	OffboardingParachain,
 }
 
+#[derive(PartialEq, Eq, TypeInfo, Encode, Decode, RuntimeDebug)]
+pub struct ParaLeaf {
+	pub para_id: ParaId,
+	pub head_data: Vec<u8>
+}
+
+impl From<(u32, Vec<u8>)> for ParaLeaf {
+	fn from(t: (u32, Vec<u8>)) -> Self {
+		ParaLeaf {
+			para_id: t.0.into(),
+			head_data: t.1
+		}
+	}
+}
+
+impl AsRef<[u8]> for ParaLeaf {
+	fn as_ref(&self) -> &[u8] {
+		&self.head_data
+	}
+}
+
+#[derive(PartialEq, Eq, TypeInfo, Encode, Decode, RuntimeDebug)]
+pub struct ParaMerkleProof {
+	pub root: sp_core::H256,
+	pub proof: Vec<sp_core::H256>,
+	pub num_leaves: u64,
+	pub leaf_index: u64,
+	pub leaf: ParaLeaf
+}
+
+sp_api::decl_runtime_apis! {
+	/// API necessary for generating paraheader inclusion proofs from merkle root in beefy mmr.
+	#[api_version(1)]
+	pub trait ParasApi where
+	{
+		/// Return BinaryMerkle Proof for a particular parachains inclusion in ParaHeader tree
+		fn get_para_heads_proof(para_id: ParaId) -> Option<ParaMerkleProof>;
+	}
+}
+
 impl ParaLifecycle {
 	/// Returns true if parachain is currently onboarding. To learn if the
 	/// parachain is onboarding as a lease holding or on-demand parachain, look at the

@@ -1333,6 +1333,8 @@ dependencies = [
  "env_logger 0.9.3",
  "hash-db",
  "log",
+ "parity-scale-codec",
+ "scale-info",
  "sp-core",
  "sp-runtime",
 ]

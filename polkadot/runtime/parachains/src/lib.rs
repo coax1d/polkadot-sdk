@@ -53,7 +53,7 @@ mod mock;
 mod ump_tests;
 
 pub use origin::{ensure_parachain, Origin};
-pub use paras::ParaLifecycle;
+pub use paras::{ParaLifecycle, ParaMerkleProof, ParaLeaf, runtime_decl_for_paras_api::ParasApi as ParasApi};
 use primitives::{HeadData, Id as ParaId, ValidationCode};
 use sp_runtime::{DispatchResult, FixedU128};
 

@@ -380,8 +380,9 @@ sp_api::decl_runtime_apis! {
 			authority_id: AuthorityId,
 		) -> Option<OpaqueKeyOwnershipProof>;
 	}
-
 }
+
+
 
 #[cfg(test)]
 mod tests {

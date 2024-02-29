@@ -49,6 +49,7 @@ use runtime_parachains::{
 	runtime_api_impl::v5 as parachains_runtime_api_impl,
 	scheduler as parachains_scheduler, session_info as parachains_session_info,
 	shared as parachains_shared,
+	paras::{ParaMerkleProof, ParaLeaf},
 };
 
 use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
@@ -1329,6 +1330,64 @@ parameter_types! {
 	pub LeafVersion: MmrLeafVersion = MmrLeafVersion::new(0, 0);
 }
 
+// #[derive(PartialEq, Eq, TypeInfo, Encode, Decode, RuntimeDebug)]
+// pub struct ParaLeaf {
+// 	pub para_id: ParaId,
+// 	pub head_data: Vec<u8>
+// }
+
+// impl From<(u32, Vec<u8>)> for ParaLeaf {
+// 	fn from(t: (u32, Vec<u8>)) -> Self {
+// 		ParaLeaf {
+// 			para_id: t.0.into(),
+// 			head_data: t.1
+// 		}
+// 	}
+// }
+
+// impl AsRef<[u8]> for ParaLeaf {
+// 	fn as_ref(&self) -> &[u8] {
+// 		&self.head_data
+// 	}
+// }
+
+// #[derive(PartialEq, Eq, TypeInfo, Encode, Decode, RuntimeDebug)]
+// pub struct ParaMerkleProof {
+// 	root: H256,
+// 	proof: Vec<H256>,
+// 	num_leaves: u64,
+// 	leaf_index: u64,
+// 	leaf: ParaLeaf
+// }
+
+
+
+pub struct ParaMerkleProofGen;
+impl ParaMerkleProofGen {
+	pub fn gen_merkle_proof(para_id: ParaId) -> Option<ParaMerkleProof> {
+		let mut para_heads: Vec<(u32, Vec<u8>)> = Paras::parachains()
+			.into_iter()
+			.filter_map(|id| Paras::para_head(&id).map(|head| (id.into(), head.0)))
+			.collect();
+		para_heads.sort();
+
+		let index_to_prove = para_heads.iter().enumerate().find(|&(_, &(id, _))| id == u32::from(para_id) ).map(|(index, _)| index).unwrap().into();
+
+		let merkle_proof = binary_merkle_tree::merkle_proof::<mmr::Hashing, _, Vec<u8>>(
+			para_heads.into_iter().map(|pair| ParaLeaf::from(pair).encode()),
+			index_to_prove
+		);
+		let result_proof = ParaMerkleProof {
+			root: merkle_proof.root,
+			proof: merkle_proof.proof,
+			num_leaves: merkle_proof.number_of_leaves as u64,
+			leaf_index: merkle_proof.leaf_index as u64,
+			leaf: ParaLeaf::decode(&mut &merkle_proof.leaf[..]).unwrap(),
+		};
+		Some(result_proof)
+	}
+}
+
 pub struct ParaHeadsRootProvider;
 impl BeefyDataProvider<H256> for ParaHeadsRootProvider {
 	fn extra_data() -> H256 {
@@ -1880,6 +1939,13 @@ sp_api::impl_runtime_apis! {
 			Historical::prove((beefy_primitives::KEY_TYPE, authority_id))
 				.map(|p| p.encode())
 				.map(beefy_primitives::OpaqueKeyOwnershipProof::new)
+		}
+	}
+
+	#[api_version(1)]
+	impl parachains_paras::ParasApi<Block> for Runtime {
+		fn get_para_heads_proof(para_id: ParaId) -> Option<ParaMerkleProof> {
+			ParaMerkleProofGen::gen_merkle_proof(para_id)
 		}
 	}
 
