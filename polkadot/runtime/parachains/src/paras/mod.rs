@@ -196,7 +196,7 @@ pub enum ParaLifecycle {
 	OffboardingParachain,
 }
 
-#[derive(PartialEq, Eq, TypeInfo, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, TypeInfo, Clone, Encode, Decode, RuntimeDebug)]
 pub struct ParaLeaf {
 	pub para_id: ParaId,
 	pub head_data: Vec<u8>
@@ -217,7 +217,7 @@ impl AsRef<[u8]> for ParaLeaf {
 	}
 }
 
-#[derive(PartialEq, Eq, TypeInfo, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, TypeInfo, Encode, Decode, RuntimeDebug)]
 pub struct ParaMerkleProof {
 	pub root: sp_core::H256,
 	pub proof: Vec<sp_core::H256>,
