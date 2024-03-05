@@ -322,7 +322,7 @@ pub trait CollectXcmpChannelMmrRoots {
 }
 
 pub trait GetBeefyRoot {
-	type Root: Default + sp_api::Decode + core::fmt::Debug + Into<sp_core::H256>;
+	type Root: Default + sp_api::Decode + core::fmt::Debug + Into<sp_core::H256> + Clone;
 	fn get_root() -> Option<Self::Root>;
 }
 
