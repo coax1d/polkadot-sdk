@@ -576,6 +576,9 @@ members = [
 	"templates/solochain/node",
 	"templates/solochain/pallets/template",
 	"templates/solochain/runtime",
+	"templates/zcash-poc/node",
+	"templates/zcash-poc/pallets/shielded-pool",
+	"templates/zcash-poc/runtime",
 	"templates/zombienet",
 	"umbrella",
 ]
@@ -657,6 +660,7 @@ ark-ff = { version = "0.5.0", default-features = false }
 ark-pallas = { version = "0.5.0", default-features = false }
 ark-pallas-ext = { version = "0.5.0", default-features = false }
 ark-scale = { version = "0.0.13", default-features = false }
+ark-serialize = { version = "0.5.0", default-features = false }
 ark-std = { version = "0.5.0", default-features = false }
 ark-vesta = { version = "0.5.0", default-features = false }
 ark-vesta-ext = { version = "0.5.0", default-features = false }
@@ -1076,6 +1080,7 @@ pallet-staking-async-runtime-api = { path = "substrate/frame/staking-async/runti
 pallet-state-trie-migration = { path = "substrate/frame/state-trie-migration", default-features = false }
 pallet-statement = { default-features = false, path = "substrate/frame/statement" }
 pallet-sudo = { path = "substrate/frame/sudo", default-features = false }
+pallet-shielded-pool = { path = "templates/zcash-poc/pallets/shielded-pool", default-features = false }
 pallet-template = { path = "templates/solochain/pallets/template", default-features = false }
 pallet-timestamp = { path = "substrate/frame/timestamp", default-features = false }
 pallet-tips = { path = "substrate/frame/tips", default-features = false }
@@ -1329,6 +1334,7 @@ snowbridge-test-utils = { path = "bridges/snowbridge/test-utils" }
 snowbridge-verification-primitives = { path = "bridges/snowbridge/primitives/verification", default-features = false }
 soketto = { version = "0.8.0" }
 solochain-template-runtime = { path = "templates/solochain/runtime" }
+zcash-poc-runtime = { path = "templates/zcash-poc/runtime" }
 sp-api = { path = "substrate/primitives/api", default-features = false }
 sp-api-proc-macro = { path = "substrate/primitives/api/proc-macro", default-features = false }
 sp-application-crypto = { path = "substrate/primitives/application-crypto", default-features = false }

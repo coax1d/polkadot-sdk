@@ -1,0 +1,74 @@
+[package]
+name = "pallet-shielded-pool"
+description = "A Zcash-inspired shielded UTXO pool using Pedersen commitments on Pallas."
+version = "0.0.0"
+license = "Unlicense"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+publish = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[lints]
+workspace = true
+
+[dependencies]
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+
+# frame deps
+frame-benchmarking = { optional = true, workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# pallets
+pallet-balances = { workspace = true }
+
+# crypto
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
+sp-crypto-ec-utils = { features = ["pallas"], workspace = true }
+ark-ec = { workspace = true }
+ark-ff = { workspace = true }
+ark-scale = { features = ["hazmat"], workspace = true }
+ark-serialize = { workspace = true }
+ark-std = { workspace = true }
+
+[dev-dependencies]
+sp-io = { workspace = true, default-features = true }
+
+[features]
+default = ["std"]
+std = [
+	"ark-ec/std",
+	"ark-ff/std",
+	"ark-scale/std",
+	"ark-serialize/std",
+	"ark-std/std",
+	"codec/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-balances/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-crypto-ec-utils/std",
+	"sp-io/std",
+	"sp-runtime/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-balances/try-runtime",
+	"sp-runtime/try-runtime",
+]
