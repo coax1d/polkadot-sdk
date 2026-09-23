@@ -52,8 +52,8 @@ pub mod sync_backing {
 }
 
 mod genesis_config_presets;
-mod test_pallet;
 mod key_gen;
+mod test_pallet;
 
 extern crate alloc;
 
@@ -375,6 +375,10 @@ impl pallet_aura::Config for Runtime {
 
 impl test_pallet::Config for Runtime {}
 
+impl key_gen::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 construct_runtime! {
 	pub enum Runtime
 	{
@@ -390,6 +394,7 @@ construct_runtime! {
 		Aura: pallet_aura,
 		AuraExt: cumulus_pallet_aura_ext,
 		WeightReclaim: cumulus_pallet_weight_reclaim,
+		KeyGen: key_gen,
 	}
 }
 

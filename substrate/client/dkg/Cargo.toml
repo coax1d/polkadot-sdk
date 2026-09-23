@@ -41,10 +41,11 @@ thiserror = { workspace = true }
 tokio = { workspace = true, default-features = true }
 wasm-timer = { workspace = true }
 
-adkg-vrf = { git = "https://github.com/w3f/adkg-vrf.git" }
+# Pinned fork with the current adkg-vrf API (Dkg/deal_and_sign/aggregate),
+# typed errors and serializable transcripts. TODO: switch back to w3f/paritytech once merged.
+adkg-vrf = { git = "https://github.com/coax1d/adkg-vrf.git", rev = "d254558650cba8457a6fc0862796e76a1757869f" }
 
 ark-ec = { version = "0.5", default-features = false }
-ark-poly = { version = "0.5", default-features = false }
 
 
 [dev-dependencies]

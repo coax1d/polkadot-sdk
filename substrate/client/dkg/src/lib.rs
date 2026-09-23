@@ -1,19 +1,18 @@
 pub mod communication;
 
-use std::{sync::Arc, marker::PhantomData};
+use std::{marker::PhantomData, sync::Arc};
+
 use rand::rngs::OsRng;
-use rand::RngCore;
 use sc_network::{NotificationService, ProtocolName};
-use adkg_vrf::dkg::transcript::{DkgTranscript};
-use adkg_vrf::dkg::{Ceremony, DkgResult};
-use adkg_vrf::dkg::dealer;
 
-use adkg_vrf::bls::threshold::ThresholdVk;
 use adkg_vrf::bls::vanilla::BlsSigner;
+use adkg_vrf::dkg::{transcript::Transcript, Dkg};
 
-use ark_ec::pairing::Pairing;
-use ark_ec::{CurveGroup, PrimeGroup};
-use ark_poly::GeneralEvaluationDomain;
+use ark_ec::hashing::{
+	curve_maps::wb::{WBConfig, WBMap},
+	map_to_curve_hasher::MapToCurve,
+};
+use ark_ec::{pairing::Pairing, CurveGroup};
 
 #[cfg(feature = "bls-experimental")]
 use sp_core::bls::bls381::*;
@@ -35,24 +34,31 @@ pub struct DkgNetworkParams<N, S> {
 	pub _phantom: PhantomData<(N, S)>,
 }
 
-pub fn perform_dealing<C: Pairing>() -> Option<DkgTranscript<C>> {
+/// Produces a single dealing (a DKG transcript) for a demo validator set.
+///
+/// TODO: This is a stub. The signer/dealer keys must come from the validator
+/// set and the node's keystore (BLS12-381 session keys), and the transcript
+/// must be gossiped to the other validators and submitted to the aggregation
+/// parachain.
+pub fn perform_dealing<C: Pairing>() -> Option<Transcript<C>>
+where
+	<C::G2 as CurveGroup>::Config: WBConfig,
+	WBMap<<C::G2 as CurveGroup>::Config>: MapToCurve<C::G2>,
+{
 	let mut os_rng = OsRng;
 
 	// TODO: Get this from somewhere
 	let num_validators = 42;
 	let f = num_validators;
 
-	let (n, t, k) = (3 * f + 1, 2 * f + 1, f + 1);
+	let (n, t) = (3 * f + 1, 2 * f + 1);
 	// TODO: Add real BLS keys.. These will be the bls keys for each validator
-    let signers: Vec<BlsSigner<C>> = (0..n)
-            .map(|_| BlsSigner::new(C::G2::generator(), &mut os_rng))
-            .collect();
-    let signers_pks: Vec<_> = signers.iter()
-            .map(|s| s.bls_pk_g2)
-            .collect();
-	let params = Ceremony::<C, GeneralEvaluationDomain<C::ScalarField>>::setup(t, &signers_pks);
-	let transcript = params.deal(&mut os_rng);
+	let signers: Vec<BlsSigner<C>> = (0..n).map(|_| BlsSigner::new(&mut os_rng)).collect();
+	let signers_pks: Vec<_> = signers.iter().map(|s| s.bls_pk_g2).collect();
 
-	Some(transcript)
+	// TODO: For now a single throwaway dealer; validators deal with their own BLS keys.
+	let dealer = BlsSigner::<C>::new(&mut os_rng);
+
+	let dkg = Dkg::<C>::new(signers_pks, t, vec![dealer.bls_pk_g1], 1).ok()?;
+	dkg.deal_and_sign(&mut os_rng, (dealer.sk, dealer.bls_pk_g1)).ok()
 }
-
