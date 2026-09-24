@@ -279,6 +279,7 @@ members = [
 	"substrate/client/consensus/pow",
 	"substrate/client/consensus/slots",
 	"substrate/client/db",
+	"substrate/client/dkg",
 	"substrate/client/executor",
 	"substrate/client/executor/common",
 	"substrate/client/executor/polkavm",

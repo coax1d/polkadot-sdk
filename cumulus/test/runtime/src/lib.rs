@@ -25,6 +25,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod features;
 mod flavors;
 mod genesis_config_presets;
+mod key_gen;
 pub mod test_pallet;
 
 extern crate alloc;
@@ -375,6 +376,10 @@ impl pallet_aura::Config for Runtime {
 
 impl test_pallet::Config for Runtime {}
 
+impl key_gen::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 parameter_types! {
 	pub const Period: u32 = 10;
 }
@@ -422,6 +427,7 @@ construct_runtime! {
 		AuthorityDiscovery: pallet_authority_discovery,
 		AuraExt: cumulus_pallet_aura_ext,
 		WeightReclaim: cumulus_pallet_weight_reclaim,
+		KeyGen: key_gen,
 	}
 }
 
