@@ -34,6 +34,7 @@ sp-api = { workspace = true }
 sp-authority-discovery = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
+sp-consensus-dkg = { workspace = true, features = ["bls-experimental"] }
 sp-core = { workspace = true }
 sp-genesis-builder = { workspace = true }
 sp-inherents = { workspace = true }
@@ -62,6 +63,9 @@ ark-bls12-381 = { version = "0.5", default-features = false, features = ["curve"
 ark-serialize = { version = "0.5", default-features = false }
 # Pinned fork with the current adkg-vrf API; TODO: switch back to w3f/paritytech once merged.
 adkg-vrf = { git = "https://github.com/coax1d/adkg-vrf.git", rev = "d254558650cba8457a6fc0862796e76a1757869f", default-features = false }
+
+[dev-dependencies]
+ark-ec = { version = "0.5", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { optional = true, workspace = true, default-features = true }
@@ -102,6 +106,7 @@ std = [
 	"sp-authority-discovery/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
+	"sp-consensus-dkg/std",
 	"sp-core/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",

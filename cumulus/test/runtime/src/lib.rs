@@ -38,6 +38,8 @@ use sp_api::{decl_runtime_apis, impl_runtime_apis};
 pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{ConstBool, ConstU32, ConstU64, Get, OpaqueMetadata};
+#[cfg(feature = "with-authority-discovery")]
+use sp_consensus_dkg::bls_crypto::AuthorityId as DkgId;
 
 use sp_runtime::{
 	generic, impl_opaque_keys,
@@ -96,6 +98,7 @@ impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
 		pub authority_discovery: AuthorityDiscovery,
+		pub dkg: key_gen::DkgSessionHandler,
 	}
 }
 
@@ -376,8 +379,30 @@ impl pallet_aura::Config for Runtime {
 
 impl test_pallet::Config for Runtime {}
 
+#[cfg(feature = "with-authority-discovery")]
+pub struct SessionDkgKeys;
+
+#[cfg(feature = "with-authority-discovery")]
+impl key_gen::DkgKeyLookup<AccountId> for SessionDkgKeys {
+	fn dkg_key(who: &AccountId) -> Option<Vec<u8>> {
+		use sp_runtime::traits::OpaqueKeys;
+		pallet_session::QueuedKeys::<Runtime>::get()
+			.into_iter()
+			.find(|(validator, _)| validator == who)
+			.and_then(|(_, keys)| {
+				let raw = keys.get_raw(sp_consensus_dkg::DKG_KEY_TYPE);
+				(!raw.is_empty()).then(|| raw.to_vec())
+			})
+	}
+}
+
 impl key_gen::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+
+	#[cfg(feature = "with-authority-discovery")]
+	type DkgKeyOf = SessionDkgKeys;
+	#[cfg(not(feature = "with-authority-discovery"))]
+	type DkgKeyOf = ();
 }
 
 parameter_types! {
@@ -524,7 +549,7 @@ pub type SingleBlockMigrations = (VerifyRuntimeUpgrade,);
 #[cfg(feature = "with-authority-discovery")]
 pub mod migrations {
 	use super::*;
-	use sp_core::crypto::key_types;
+	use sp_core::crypto::{key_types, ByteArray};
 
 	pub struct EnableAuthorityDiscovery;
 
@@ -552,7 +577,13 @@ pub mod migrations {
 				let account: AccountId = sp_core::sr25519::Public::from_raw(raw).into();
 				let aura_key = AuraId::from(sp_core::sr25519::Public::from_raw(raw));
 				let audi_key = AuthorityDiscoveryId::from(sp_core::sr25519::Public::from_raw(raw));
-				let session_keys = SessionKeys { aura: aura_key, authority_discovery: audi_key };
+				// The migration cannot derive BLS secret keys (it runs on-chain), so the
+				// DKG key starts as a zero placeholder: validators must `set_keys` a real
+				// DKG key before they can deal (the key_gen pallet rejects the placeholder
+				// via its dealer-key binding).
+				let dkg_key = DkgId::from_slice(&[0u8; 144]).expect("144 bytes is a valid DKG key");
+				let session_keys =
+					SessionKeys { aura: aura_key, authority_discovery: audi_key, dkg: dkg_key };
 
 				// Populate NextKeys and KeyOwner (mirrors pallet_session genesis logic).
 				pallet_session::NextKeys::<Runtime>::insert(&account, &session_keys);

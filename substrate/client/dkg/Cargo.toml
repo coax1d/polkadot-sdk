@@ -34,9 +34,12 @@ sp-application-crypto = { workspace = true, default-features = true }
 sp-arithmetic = { workspace = true, default-features = true }
 sp-blockchain = { workspace = true, default-features = true }
 sp-consensus = { workspace = true, default-features = true }
+sp-consensus-dkg = { workspace = true, default-features = true }
 sp-core = { workspace = true, default-features = true }
+sp-crypto-hashing = { workspace = true, default-features = true }
 sp-keystore = { workspace = true, default-features = true }
 sp-runtime = { workspace = true, default-features = true }
+sp-storage = { workspace = true, default-features = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, default-features = true }
 wasm-timer = { workspace = true }
@@ -64,5 +67,6 @@ substrate-test-runtime-client = { workspace = true }
 # the BLS implementation and interface may still be subject to significant change.
 bls-experimental = [
 	"sp-application-crypto/bls-experimental",
+	"sp-consensus-dkg/bls-experimental",
 	"sp-core/bls-experimental",
 ]

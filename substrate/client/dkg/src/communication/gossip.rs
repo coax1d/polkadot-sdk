@@ -88,12 +88,15 @@ where
 	H::hash_of(b"dkg-dealing")
 }
 
-// TODO: Put this in a primitives crate for DKG, similar to `sp-consensus-beefy`.
-/// DKG cryptographic types for BLS12-381 crypto.
+/// DKG cryptographic types and helpers for BLS12-381 crypto.
 ///
 /// Uses substrate's experimental BLS12-381 scheme (w3f-bls): the public key is a
 /// `DoublePublicKey` = `[pk_in_G2 (96B) || pk_in_G1 (48B)]`. The G2 component is the
-/// validator's signer public key in the a-DKG (`adkg-vrf`).
+/// validator's signer public key in the a-DKG (`adkg-vrf`); the G1 component is the
+/// dealer public key bound by the `ContributionReceipt` proof of possession.
+///
+/// The crypto types themselves are defined in `sp-consensus-dkg` (shared with the
+/// runtime); the helpers below are client-side glue on top of them.
 ///
 /// This module basically introduces four crypto types:
 /// - `bls_crypto::Pair`
@@ -106,24 +109,12 @@ where
 #[cfg(feature = "bls-experimental")]
 pub mod bls_crypto {
 	use super::AuthorityIdBound;
-	use sp_application_crypto::{app_crypto, bls381};
+	pub use sp_consensus_dkg::bls_crypto::*;
+	pub use sp_consensus_dkg::DKG_KEY_TYPE as DKG;
 
-	// TODO: Put this in Keytypes module in crypto similar to babe beefy etc..
-    // sp_application_crypto::key_types
-    /// Key type for DKG module.
-	pub const DKG: sp_core::crypto::KeyTypeId = sp_core::crypto::KeyTypeId(*b"dkgg");
+	use sp_core::crypto::ByteArray;
 
-	app_crypto!(bls381, DKG);
-
-	/// Identity of a DKG authority using BLS12-381 as its crypto.
-	pub type AuthorityId = Public;
-
-	/// Signature for a DKG authority using BLS12-381 as its crypto.
-	pub type AuthoritySignature = Signature;
-
-	impl AuthorityIdBound for AuthorityId {
-
-	}
+	impl AuthorityIdBound for AuthorityId {}
 
 	/// Serialized size of the G2 component of a (double) BLS12-381 public key.
 	const G2_COMPRESSED_SIZE: usize = 96;
@@ -140,7 +131,6 @@ pub mod bls_crypto {
 
 	/// Returns all DKG BLS12-381 public keys stored in the keystore.
 	pub fn public_keys(store: &sp_keystore::KeystorePtr) -> Vec<Public> {
-		use sp_core::crypto::ByteArray;
 		store
 			.bls381_public_keys(DKG)
 			.into_iter()
@@ -155,7 +145,6 @@ pub mod bls_crypto {
 		public: &Public,
 		msg: &[u8],
 	) -> Result<Option<Signature>, sp_keystore::Error> {
-		use sp_core::crypto::ByteArray;
 		let raw_public = sp_core::bls381::Public::from_slice(AsRef::<[u8]>::as_ref(public))
 			.map_err(|_| sp_keystore::Error::ValidationError("invalid DKG public key".into()))?;
 		let sig = store.bls381_sign(DKG, &raw_public, msg)?;

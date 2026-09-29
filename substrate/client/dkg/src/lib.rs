@@ -1,5 +1,8 @@
 pub mod communication;
 
+#[cfg(feature = "bls-experimental")]
+pub mod keys;
+
 use std::{marker::PhantomData, sync::Arc};
 
 use rand::rngs::OsRng;

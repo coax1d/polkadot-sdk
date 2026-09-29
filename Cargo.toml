@@ -510,6 +510,7 @@ members = [
 	"substrate/primitives/consensus/babe",
 	"substrate/primitives/consensus/beefy",
 	"substrate/primitives/consensus/common",
+	"substrate/primitives/consensus/dkg",
 	"substrate/primitives/consensus/grandpa",
 	"substrate/primitives/consensus/pow",
 	"substrate/primitives/consensus/sassafras",
@@ -1356,6 +1357,7 @@ sp-blockchain = { path = "substrate/primitives/blockchain", default-features = f
 sp-consensus = { path = "substrate/primitives/consensus/common", default-features = false }
 sp-consensus-aura = { path = "substrate/primitives/consensus/aura", default-features = false }
 sp-consensus-babe = { path = "substrate/primitives/consensus/babe", default-features = false }
+sp-consensus-dkg = { path = "substrate/primitives/consensus/dkg", default-features = false }
 sp-consensus-beefy = { path = "substrate/primitives/consensus/beefy", default-features = false }
 sp-consensus-grandpa = { path = "substrate/primitives/consensus/grandpa", default-features = false }
 sp-consensus-pow = { path = "substrate/primitives/consensus/pow", default-features = false }

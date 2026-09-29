@@ -1,5 +1,70 @@
 pub use pallet::*;
 
+use alloc::vec::Vec;
+
+use frame_support::traits::OneSessionHandler;
+use sp_runtime::BoundToRuntimeAppPublic;
+
+/// Session handler for the DKG key type.
+///
+/// No-op for now: the DKG gadget reads the validator keys from the session
+/// pallet's `QueuedKeys` storage directly. Session notifications get wired up
+/// once the worker loop manages DKG rounds across key rotations.
+pub struct DkgSessionHandler;
+
+impl BoundToRuntimeAppPublic for DkgSessionHandler {
+	type Public = sp_consensus_dkg::bls_crypto::AuthorityId;
+}
+
+impl<ValidatorId> OneSessionHandler<ValidatorId> for DkgSessionHandler {
+	type Key = sp_consensus_dkg::bls_crypto::AuthorityId;
+
+	fn on_genesis_session<'a, I: 'a>(_: I)
+	where
+		I: Iterator<Item = (&'a ValidatorId, Self::Key)>,
+		ValidatorId: 'a,
+	{
+	}
+
+	fn on_new_session<'a, I: 'a>(_: bool, _: I, _: I)
+	where
+		I: Iterator<Item = (&'a ValidatorId, Self::Key)>,
+		ValidatorId: 'a,
+	{
+	}
+
+	fn on_disabled(_: u32) {}
+}
+
+
+/// Look up an account's registered DKG session key.
+///
+/// Implemented by the runtime; backed by the session pallet's queued keys when the
+/// runtime has one. The `()` impl models "no session pallet": nobody is a validator.
+pub trait DkgKeyLookup<AccountId> {
+	/// The account's registered DKG session key, or `None` if `who` is not a
+	/// (queued) validator or has no DKG key registered.
+	fn dkg_key(who: &AccountId) -> Option<Vec<u8>>;
+}
+
+impl<AccountId> DkgKeyLookup<AccountId> for () {
+	fn dkg_key(_: &AccountId) -> Option<Vec<u8>> {
+		None
+	}
+}
+
+/// Serialized size of the G2 component of a (double) BLS12-381 public key.
+const G2_COMPRESSED_SIZE: usize = 96;
+/// Serialized size of the G1 component of a (double) BLS12-381 public key.
+const G1_COMPRESSED_SIZE: usize = 48;
+
+/// Returns the G1 component (the a-DKG dealer key) of a serialized (double)
+/// BLS12-381 session key, i.e. `raw[96..144]` of the `DoublePublicKey` layout
+/// `[pk_in_G2 (96B) || pk_in_G1 (48B)]`.
+pub fn session_key_g1(raw: &[u8]) -> Option<&[u8]> {
+	raw.get(G2_COMPRESSED_SIZE..G2_COMPRESSED_SIZE + G1_COMPRESSED_SIZE)
+}
+
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
@@ -11,6 +76,8 @@ pub mod pallet {
 	use ark_bls12_381::Bls12_381;
 	use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 
+	use super::{session_key_g1, DkgKeyLookup};
+
 	type DkgTranscript = Transcript<Bls12_381>;
 
 	#[pallet::pallet]
@@ -19,6 +86,9 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Look up the registered DKG session key of a validator account, if any.
+		type DkgKeyOf: DkgKeyLookup<Self::AccountId>;
 	}
 
 	#[pallet::event]
@@ -36,6 +106,15 @@ pub mod pallet {
 		DeserializationFailed,
 		SerializationFailed,
 		NoAggregatedTranscript,
+		/// The origin is not a queued validator with a registered DKG session key.
+		NotAValidator,
+		/// The transcript has no contribution receipts.
+		NoDealers,
+		/// The transcript must come from a single dealer, dealing with the
+		/// submitter's own DKG session key.
+		NotSingleDealer,
+		/// The transcript's dealer key does not match the submitter's DKG session key.
+		UnknownDealer,
 	}
 
 	#[pallet::storage]
@@ -45,12 +124,20 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Submit a dealing transcript; it is verified and merged into the aggregate.
+		///
+		/// Only queued validators can submit, and the transcript must be a fresh
+		/// (single-dealer) dealing created with the submitter's own DKG session key:
+		/// the `ContributionReceipt` proof of possession binds the dealer key, which
+		/// must equal the G1 component of the submitter's session key. Aggregation of
+		/// multiple dealings happens on-chain via this pallet's own merge logic.
 		#[pallet::call_index(0)]
 		#[pallet::weight(10_000_000)] // TODO: benchmark
 		pub fn add_transcript(origin: OriginFor<T>, transcript_bytes: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			// TODO: restrict the origin to validators/collators.
+			let session_key = T::DkgKeyOf::dkg_key(&who).ok_or(Error::<T>::NotAValidator)?;
+			let session_g1 = session_key_g1(&session_key).ok_or(Error::<T>::NotAValidator)?;
+
 			let new_transcript = DkgTranscript::deserialize_compressed(&transcript_bytes[..])
 				.map_err(|_| Error::<T>::DeserializationFailed)?;
 
@@ -60,6 +147,18 @@ pub mod pallet {
 				receipt.verify_all_sigs().map_err(|_| Error::<T>::VerificationFailed)?;
 			}
 			new_transcript.check_consistency().map_err(|_| Error::<T>::VerificationFailed)?;
+
+			// Bind the dealing to the submitter: it must be a fresh, single-dealer
+			// transcript whose dealer key is the G1 component of the submitter's
+			// DKG session key.
+			let dealers = new_transcript.list_dealers();
+			let dealer_pk = dealers.first().ok_or(Error::<T>::NoDealers)?;
+			ensure!(dealers.iter().all(|d| d == dealer_pk), Error::<T>::NotSingleDealer);
+			let mut dealer_bytes = Vec::new();
+			dealer_pk
+				.serialize_compressed(&mut dealer_bytes)
+				.map_err(|_| Error::<T>::SerializationFailed)?;
+			ensure!(dealer_bytes == session_g1, Error::<T>::UnknownDealer);
 
 			let aggregated = if let Some(existing_bytes) = AggregatedTranscript::<T>::get() {
 				let existing = DkgTranscript::deserialize_compressed(&existing_bytes[..])
@@ -105,5 +204,45 @@ pub mod pallet {
 			Self::deposit_event(Event::VkComputed { who, c: c_bytes });
 			Ok(())
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use ark_bls12_381::{Fr, G1Affine, G1Projective, G2Projective};
+	use ark_ec::{CurveGroup, PrimeGroup};
+	use ark_serialize::CanonicalSerialize;
+
+	/// Builds a serialized (double) BLS12-381 key `[pk_G2 (96B) || pk_G1 (48B)]`
+	/// for the given secret, as stored in the session key store.
+	fn double_key_bytes(sk: Fr) -> Vec<u8> {
+		let pk_g1: ark_bls12_381::G1Affine = (G1Projective::generator() * sk).into_affine();
+		let pk_g2: ark_bls12_381::G2Affine = (G2Projective::generator() * sk).into_affine();
+		let mut raw = Vec::new();
+		pk_g2.serialize_compressed(&mut raw).unwrap();
+		pk_g1.serialize_compressed(&mut raw).unwrap();
+		raw
+	}
+
+	#[test]
+	fn session_key_g1_extracts_dealer_key() {
+		let sk = Fr::from(42u64);
+		let raw = double_key_bytes(sk);
+		assert_eq!(raw.len(), 144);
+
+		let g1 = session_key_g1(&raw).unwrap();
+		let dealer_pk: G1Affine = (G1Projective::generator() * sk).into_affine();
+		let mut dealer_bytes = Vec::new();
+		dealer_pk.serialize_compressed(&mut dealer_bytes).unwrap();
+
+		// The G1 half of the session key is exactly the a-DKG dealer key.
+		assert_eq!(g1, &dealer_bytes[..]);
+	}
+
+	#[test]
+	fn session_key_g1_rejects_short_keys() {
+		assert!(session_key_g1(&[0u8; 143]).is_none());
+		assert!(session_key_g1(&[]).is_none());
 	}
 }

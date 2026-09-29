@@ -5712,6 +5712,7 @@ version = "0.1.0"
 dependencies = [
  "adkg-vrf",
  "ark-bls12-381 0.5.0",
+ "ark-ec 0.5.0",
  "ark-serialize 0.5.0",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5742,6 +5743,7 @@ dependencies = [
  "sp-authority-discovery",
  "sp-block-builder",
  "sp-consensus-aura",
+ "sp-consensus-dkg",
  "sp-core 28.0.0",
  "sp-genesis-builder 0.8.0",
  "sp-inherents 26.0.0",
@@ -21602,9 +21604,12 @@ dependencies = [
  "sp-arithmetic 23.0.0",
  "sp-blockchain 28.0.0",
  "sp-consensus 0.32.0",
+ "sp-consensus-dkg",
  "sp-core 28.0.0",
+ "sp-crypto-hashing 0.1.0",
  "sp-keystore 0.34.0",
  "sp-runtime 31.0.1",
+ "sp-storage 19.0.0",
  "sp-tracing 16.0.0",
  "substrate-prometheus-endpoint 0.17.0",
  "substrate-test-runtime-client",
@@ -24937,6 +24942,16 @@ dependencies = [
  "sp-weights 27.0.0",
  "strum 0.26.3",
  "w3f-bls",
+]
+
+[[package]]
+name = "sp-consensus-dkg"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto 30.0.0",
+ "sp-core 28.0.0",
 ]
 
 [[package]]

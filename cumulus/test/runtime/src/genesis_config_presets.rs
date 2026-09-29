@@ -17,6 +17,10 @@
 use super::{
 	AccountId, AuraId, BalancesConfig, ParachainInfoConfig, RuntimeGenesisConfig, SudoConfig,
 };
+#[cfg(feature = "with-authority-discovery")]
+use sp_consensus_dkg::bls_crypto::AuthorityId as DkgId;
+#[cfg(feature = "with-authority-discovery")]
+use sp_core::Pair as _;
 use alloc::{vec, vec::Vec};
 
 use cumulus_primitives_core::ParaId;
@@ -66,7 +70,11 @@ fn cumulus_test_runtime(
 			let account: AccountId = AccountId::from(raw);
 			let aura_key: AuraId = aura.clone();
 			let ad_key: AuthorityDiscoveryId = inner.into();
-			(account.clone(), account, SessionKeys { aura: aura_key, authority_discovery: ad_key })
+			// Deterministic DKG key derived from the validator's sr25519 key material.
+			// The node must insert the same key into its keystore (key type `dkgg`) to
+			// deal; the test service derives it identically.
+			let dkg_key: DkgId = sp_core::bls381::Pair::from_seed(&raw).public().into();
+			(account.clone(), account, SessionKeys { aura: aura_key, authority_discovery: ad_key, dkg: dkg_key })
 		})
 		.collect();
 
