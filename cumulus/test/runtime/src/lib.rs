@@ -39,7 +39,7 @@ pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{ConstBool, ConstU32, ConstU64, Get, OpaqueMetadata};
 #[cfg(feature = "with-authority-discovery")]
-use sp_consensus_dkg::bls_crypto::AuthorityId as DkgId;
+use sp_consensus_beefy::ecdsa_bls_crypto::AuthorityId as BeefyId;
 
 use sp_runtime::{
 	generic, impl_opaque_keys,
@@ -98,7 +98,7 @@ impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
 		pub authority_discovery: AuthorityDiscovery,
-		pub dkg: key_gen::DkgSessionHandler,
+		pub beefy: key_gen::BeefySessionHandler,
 	}
 }
 
@@ -390,7 +390,7 @@ impl key_gen::DkgKeyLookup<AccountId> for SessionDkgKeys {
 			.into_iter()
 			.find(|(validator, _)| validator == who)
 			.and_then(|(_, keys)| {
-				let raw = keys.get_raw(sp_consensus_dkg::DKG_KEY_TYPE);
+				let raw = keys.get_raw(sp_core::crypto::key_types::BEEFY);
 				(!raw.is_empty()).then(|| raw.to_vec())
 			})
 	}
@@ -578,12 +578,16 @@ pub mod migrations {
 				let aura_key = AuraId::from(sp_core::sr25519::Public::from_raw(raw));
 				let audi_key = AuthorityDiscoveryId::from(sp_core::sr25519::Public::from_raw(raw));
 				// The migration cannot derive BLS secret keys (it runs on-chain), so the
-				// DKG key starts as a zero placeholder: validators must `set_keys` a real
-				// DKG key before they can deal (the key_gen pallet rejects the placeholder
-				// via its dealer-key binding).
-				let dkg_key = DkgId::from_slice(&[0u8; 144]).expect("144 bytes is a valid DKG key");
-				let session_keys =
-					SessionKeys { aura: aura_key, authority_discovery: audi_key, dkg: dkg_key };
+				// BEEFY key starts as a zero placeholder: validators must `set_keys` a
+				// real BEEFY key before they can deal (the key_gen pallet rejects the
+				// placeholder via its dealer-key binding).
+				let beefy_key =
+					BeefyId::from_slice(&[0u8; 177]).expect("177 bytes is a valid BEEFY key");
+				let session_keys = SessionKeys {
+					aura: aura_key,
+					authority_discovery: audi_key,
+					beefy: beefy_key,
+				};
 
 				// Populate NextKeys and KeyOwner (mirrors pallet_session genesis logic).
 				pallet_session::NextKeys::<Runtime>::insert(&account, &session_keys);

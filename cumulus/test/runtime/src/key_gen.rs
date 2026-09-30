@@ -5,19 +5,21 @@ use alloc::vec::Vec;
 use frame_support::traits::OneSessionHandler;
 use sp_runtime::BoundToRuntimeAppPublic;
 
-/// Session handler for the DKG key type.
+/// Session handler for the BEEFY session key in runtimes without `pallet_beefy`.
 ///
-/// No-op for now: the DKG gadget reads the validator keys from the session
-/// pallet's `QueuedKeys` storage directly. Session notifications get wired up
-/// once the worker loop manages DKG rounds across key rotations.
-pub struct DkgSessionHandler;
+/// The DKG reuses the validators' BEEFY (ECDSA,BLS12-381) session keys
+/// (decision: Alistair, 2026-09-29). This handler is a no-op for now: the DKG
+/// gadget reads the validator keys from the session pallet's `QueuedKeys`
+/// storage directly. Session notifications get wired up once the worker loop
+/// manages DKG rounds across key rotations.
+pub struct BeefySessionHandler;
 
-impl BoundToRuntimeAppPublic for DkgSessionHandler {
-	type Public = sp_consensus_dkg::bls_crypto::AuthorityId;
+impl BoundToRuntimeAppPublic for BeefySessionHandler {
+	type Public = sp_consensus_beefy::ecdsa_bls_crypto::AuthorityId;
 }
 
-impl<ValidatorId> OneSessionHandler<ValidatorId> for DkgSessionHandler {
-	type Key = sp_consensus_dkg::bls_crypto::AuthorityId;
+impl<ValidatorId> OneSessionHandler<ValidatorId> for BeefySessionHandler {
+	type Key = sp_consensus_beefy::ecdsa_bls_crypto::AuthorityId;
 
 	fn on_genesis_session<'a, I: 'a>(_: I)
 	where
@@ -37,13 +39,13 @@ impl<ValidatorId> OneSessionHandler<ValidatorId> for DkgSessionHandler {
 }
 
 
-/// Look up an account's registered DKG session key.
+/// Look up an account's registered BEEFY session key.
 ///
 /// Implemented by the runtime; backed by the session pallet's queued keys when the
 /// runtime has one. The `()` impl models "no session pallet": nobody is a validator.
 pub trait DkgKeyLookup<AccountId> {
-	/// The account's registered DKG session key, or `None` if `who` is not a
-	/// (queued) validator or has no DKG key registered.
+	/// The account's registered BEEFY session key, or `None` if `who` is not a
+	/// (queued) validator or has no BEEFY key registered.
 	fn dkg_key(who: &AccountId) -> Option<Vec<u8>>;
 }
 
@@ -53,16 +55,19 @@ impl<AccountId> DkgKeyLookup<AccountId> for () {
 	}
 }
 
+/// Serialized size of the ECDSA component of a BEEFY paired public key.
+const ECDSA_SIZE: usize = 33;
 /// Serialized size of the G2 component of a (double) BLS12-381 public key.
 const G2_COMPRESSED_SIZE: usize = 96;
 /// Serialized size of the G1 component of a (double) BLS12-381 public key.
 const G1_COMPRESSED_SIZE: usize = 48;
 
-/// Returns the G1 component (the a-DKG dealer key) of a serialized (double)
-/// BLS12-381 session key, i.e. `raw[96..144]` of the `DoublePublicKey` layout
-/// `[pk_in_G2 (96B) || pk_in_G1 (48B)]`.
+/// Returns the G1 component (the a-DKG dealer key) of a serialized BEEFY paired
+/// (ECDSA,BLS12-381) session key, i.e. `raw[129..177]` of the layout
+/// `[ecdsa (33B) || pk_in_G2 (96B) || pk_in_G1 (48B)]`
+/// (paired key over w3f-bls `DoublePublicKey`).
 pub fn session_key_g1(raw: &[u8]) -> Option<&[u8]> {
-	raw.get(G2_COMPRESSED_SIZE..G2_COMPRESSED_SIZE + G1_COMPRESSED_SIZE)
+	raw.get(ECDSA_SIZE + G2_COMPRESSED_SIZE..ECDSA_SIZE + G2_COMPRESSED_SIZE + G1_COMPRESSED_SIZE)
 }
 
 #[frame_support::pallet(dev_mode)]
@@ -87,7 +92,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Look up the registered DKG session key of a validator account, if any.
+		/// Look up the registered BEEFY session key of a validator account, if any.
 		type DkgKeyOf: DkgKeyLookup<Self::AccountId>;
 	}
 
@@ -106,14 +111,14 @@ pub mod pallet {
 		DeserializationFailed,
 		SerializationFailed,
 		NoAggregatedTranscript,
-		/// The origin is not a queued validator with a registered DKG session key.
+		/// The origin is not a queued validator with a registered BEEFY session key.
 		NotAValidator,
 		/// The transcript has no contribution receipts.
 		NoDealers,
 		/// The transcript must come from a single dealer, dealing with the
-		/// submitter's own DKG session key.
+		/// submitter's own BEEFY session key.
 		NotSingleDealer,
-		/// The transcript's dealer key does not match the submitter's DKG session key.
+		/// The transcript's dealer key does not match the submitter's BEEFY session key.
 		UnknownDealer,
 	}
 
@@ -126,10 +131,10 @@ pub mod pallet {
 		/// Submit a dealing transcript; it is verified and merged into the aggregate.
 		///
 		/// Only queued validators can submit, and the transcript must be a fresh
-		/// (single-dealer) dealing created with the submitter's own DKG session key:
+		/// (single-dealer) dealing created with the submitter's own BEEFY session key:
 		/// the `ContributionReceipt` proof of possession binds the dealer key, which
-		/// must equal the G1 component of the submitter's session key. Aggregation of
-		/// multiple dealings happens on-chain via this pallet's own merge logic.
+		/// must equal the G1 component of the submitter's BEEFY paired key. Aggregation
+		/// of multiple dealings happens on-chain via this pallet's own merge logic.
 		#[pallet::call_index(0)]
 		#[pallet::weight(10_000_000)] // TODO: benchmark
 		pub fn add_transcript(origin: OriginFor<T>, transcript_bytes: Vec<u8>) -> DispatchResult {
@@ -150,7 +155,7 @@ pub mod pallet {
 
 			// Bind the dealing to the submitter: it must be a fresh, single-dealer
 			// transcript whose dealer key is the G1 component of the submitter's
-			// DKG session key.
+			// BEEFY paired session key.
 			let dealers = new_transcript.list_dealers();
 			let dealer_pk = dealers.first().ok_or(Error::<T>::NoDealers)?;
 			ensure!(dealers.iter().all(|d| d == dealer_pk), Error::<T>::NotSingleDealer);
@@ -214,12 +219,13 @@ mod tests {
 	use ark_ec::{CurveGroup, PrimeGroup};
 	use ark_serialize::CanonicalSerialize;
 
-	/// Builds a serialized (double) BLS12-381 key `[pk_G2 (96B) || pk_G1 (48B)]`
-	/// for the given secret, as stored in the session key store.
-	fn double_key_bytes(sk: Fr) -> Vec<u8> {
-		let pk_g1: ark_bls12_381::G1Affine = (G1Projective::generator() * sk).into_affine();
+	/// Builds a serialized BEEFY paired key `[ecdsa (33B) || pk_G2 (96B) || pk_G1 (48B)]`
+	/// for the given BLS secret, as stored in the session key store. The ECDSA
+	/// component is opaque filler (irrelevant to the DKG).
+	fn paired_key_bytes(sk: Fr) -> Vec<u8> {
+		let pk_g1: G1Affine = (G1Projective::generator() * sk).into_affine();
 		let pk_g2: ark_bls12_381::G2Affine = (G2Projective::generator() * sk).into_affine();
-		let mut raw = Vec::new();
+		let mut raw = vec![7u8; 33];
 		pk_g2.serialize_compressed(&mut raw).unwrap();
 		pk_g1.serialize_compressed(&mut raw).unwrap();
 		raw
@@ -228,21 +234,21 @@ mod tests {
 	#[test]
 	fn session_key_g1_extracts_dealer_key() {
 		let sk = Fr::from(42u64);
-		let raw = double_key_bytes(sk);
-		assert_eq!(raw.len(), 144);
+		let raw = paired_key_bytes(sk);
+		assert_eq!(raw.len(), 177);
 
 		let g1 = session_key_g1(&raw).unwrap();
 		let dealer_pk: G1Affine = (G1Projective::generator() * sk).into_affine();
 		let mut dealer_bytes = Vec::new();
 		dealer_pk.serialize_compressed(&mut dealer_bytes).unwrap();
 
-		// The G1 half of the session key is exactly the a-DKG dealer key.
+		// The G1 component of the BEEFY paired key is exactly the a-DKG dealer key.
 		assert_eq!(g1, &dealer_bytes[..]);
 	}
 
 	#[test]
 	fn session_key_g1_rejects_short_keys() {
-		assert!(session_key_g1(&[0u8; 143]).is_none());
+		assert!(session_key_g1(&[0u8; 176]).is_none());
 		assert!(session_key_g1(&[]).is_none());
 	}
 }

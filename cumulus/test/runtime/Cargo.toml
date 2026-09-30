@@ -34,7 +34,7 @@ sp-api = { workspace = true }
 sp-authority-discovery = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
-sp-consensus-dkg = { workspace = true, features = ["bls-experimental"] }
+sp-consensus-beefy = { workspace = true, features = ["bls-experimental"] }
 sp-core = { workspace = true }
 sp-genesis-builder = { workspace = true }
 sp-inherents = { workspace = true }
@@ -106,7 +106,7 @@ std = [
 	"sp-authority-discovery/std",
 	"sp-block-builder/std",
 	"sp-consensus-aura/std",
-	"sp-consensus-dkg/std",
+	"sp-consensus-beefy/std",
 	"sp-core/std",
 	"sp-genesis-builder/std",
 	"sp-inherents/std",

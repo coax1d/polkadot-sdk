@@ -5743,7 +5743,7 @@ dependencies = [
  "sp-authority-discovery",
  "sp-block-builder",
  "sp-consensus-aura",
- "sp-consensus-dkg",
+ "sp-consensus-beefy",
  "sp-core 28.0.0",
  "sp-genesis-builder 0.8.0",
  "sp-inherents 26.0.0",
@@ -21604,7 +21604,7 @@ dependencies = [
  "sp-arithmetic 23.0.0",
  "sp-blockchain 28.0.0",
  "sp-consensus 0.32.0",
- "sp-consensus-dkg",
+ "sp-consensus-beefy",
  "sp-core 28.0.0",
  "sp-crypto-hashing 0.1.0",
  "sp-keystore 0.34.0",
@@ -24942,16 +24942,6 @@ dependencies = [
  "sp-weights 27.0.0",
  "strum 0.26.3",
  "w3f-bls",
-]
-
-[[package]]
-name = "sp-consensus-dkg"
-version = "1.0.0"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "sp-application-crypto 30.0.0",
- "sp-core 28.0.0",
 ]
 
 [[package]]
