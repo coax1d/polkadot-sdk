@@ -1,9 +1,10 @@
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use sc_utils::notification::{NotificationSender, NotificationStream, TracingKeyStr};
-use sp_runtime::{scale_info::TypeInfo, traits::Hash};
+use sp_runtime::scale_info::TypeInfo;
 
 // TODO: Put this somewhere else
 /// DKG Dealing
-#[derive(Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, TypeInfo, Encode, Decode, DecodeWithMemTracking)]
 pub struct Dealing<T> {
 	pub dealing: T,
 }

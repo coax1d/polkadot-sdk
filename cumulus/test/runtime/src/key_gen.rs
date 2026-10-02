@@ -63,11 +63,16 @@ const G2_COMPRESSED_SIZE: usize = 96;
 const G1_COMPRESSED_SIZE: usize = 48;
 
 /// Returns the G1 component (the a-DKG dealer key) of a serialized BEEFY paired
-/// (ECDSA,BLS12-381) session key, i.e. `raw[129..177]` of the layout
-/// `[ecdsa (33B) || pk_in_G2 (96B) || pk_in_G1 (48B)]`
-/// (paired key over w3f-bls `DoublePublicKey`).
+/// (ECDSA,BLS12-381) session key, i.e. `raw[33..81]` of the layout
+/// `[ecdsa (33B) || pk_in_G1 (48B) || pk_in_G2 (96B)]` — the w3f-bls
+/// `DoublePublicKey` serializes its G1 component first (verified empirically).
+///
+/// Returns `None` for anything but a full 177-byte paired public key.
 pub fn session_key_g1(raw: &[u8]) -> Option<&[u8]> {
-	raw.get(ECDSA_SIZE + G2_COMPRESSED_SIZE..ECDSA_SIZE + G2_COMPRESSED_SIZE + G1_COMPRESSED_SIZE)
+	if raw.len() != ECDSA_SIZE + G1_COMPRESSED_SIZE + G2_COMPRESSED_SIZE {
+		return None
+	}
+	raw.get(ECDSA_SIZE..ECDSA_SIZE + G1_COMPRESSED_SIZE)
 }
 
 #[frame_support::pallet(dev_mode)]
@@ -219,15 +224,15 @@ mod tests {
 	use ark_ec::{CurveGroup, PrimeGroup};
 	use ark_serialize::CanonicalSerialize;
 
-	/// Builds a serialized BEEFY paired key `[ecdsa (33B) || pk_G2 (96B) || pk_G1 (48B)]`
+	/// Builds a serialized BEEFY paired key `[ecdsa (33B) || pk_G1 (48B) || pk_G2 (96B)]`
 	/// for the given BLS secret, as stored in the session key store. The ECDSA
 	/// component is opaque filler (irrelevant to the DKG).
 	fn paired_key_bytes(sk: Fr) -> Vec<u8> {
 		let pk_g1: G1Affine = (G1Projective::generator() * sk).into_affine();
 		let pk_g2: ark_bls12_381::G2Affine = (G2Projective::generator() * sk).into_affine();
 		let mut raw = vec![7u8; 33];
-		pk_g2.serialize_compressed(&mut raw).unwrap();
 		pk_g1.serialize_compressed(&mut raw).unwrap();
+		pk_g2.serialize_compressed(&mut raw).unwrap();
 		raw
 	}
 
@@ -247,8 +252,9 @@ mod tests {
 	}
 
 	#[test]
-	fn session_key_g1_rejects_short_keys() {
+	fn session_key_g1_rejects_wrong_length_keys() {
 		assert!(session_key_g1(&[0u8; 176]).is_none());
+		assert!(session_key_g1(&[0u8; 178]).is_none());
 		assert!(session_key_g1(&[]).is_none());
 	}
 }

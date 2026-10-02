@@ -6,7 +6,7 @@
 //! required. `QueuedKeys` holds the keys of the upcoming session; the worker
 //! loop (re)builds the authority set whenever the session rotates.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use codec::Decode;
 use sc_client_api::{StorageKey, StorageProvider};
@@ -25,6 +25,9 @@ pub enum AuthoritySetError {
 	/// `Session::QueuedKeys` is not present at the given block.
 	#[error("Session::QueuedKeys not found at block")]
 	MissingQueuedKeys,
+	/// `Session::CurrentIndex` is not present at the given block.
+	#[error("Session::CurrentIndex not found at block")]
+	MissingSessionIndex,
 	/// `Session::QueuedKeys` failed to SCALE-decode.
 	#[error("failed to decode Session::QueuedKeys")]
 	DecodeFailed,
@@ -39,6 +42,43 @@ pub enum AuthoritySetError {
 /// The DKG authority set: validator account id -> BEEFY paired public key.
 pub type AuthoritySet<AccountId> = BTreeMap<AccountId, Public>;
 
+/// Fetches the queued validators' BEEFY public keys (the DKG authority set).
+///
+/// Same as [`queued_dkg_keys`], but dropping the account ids — the gadget only
+/// needs the set of keys.
+pub fn queued_dkg_public_keys<Client, Block, Backend, AccountId, Keys>(
+	client: &Client,
+	hash: Block::Hash,
+) -> Result<BTreeSet<Public>, AuthoritySetError>
+where
+	Block: BlockT,
+	Backend: sc_client_api::backend::Backend<Block>,
+	Client: StorageProvider<Block, Backend>,
+	AccountId: Decode + Ord,
+	Keys: OpaqueKeys + Decode,
+{
+	Ok(queued_dkg_keys::<_, _, _, AccountId, Keys>(client, hash)?.into_values().collect())
+}
+
+/// Reads the current session index (`Session::CurrentIndex`) at `hash`.
+pub fn session_index<Client, Block, Backend>(
+	client: &Client,
+	hash: Block::Hash,
+) -> Result<u32, AuthoritySetError>
+where
+	Block: BlockT,
+	Backend: sc_client_api::backend::Backend<Block>,
+	Client: StorageProvider<Block, Backend>,
+{
+	let mut storage_key = twox_128(b"Session").to_vec();
+	storage_key.extend_from_slice(&twox_128(b"CurrentIndex"));
+	let data = client
+		.storage(hash, &StorageKey(storage_key))?
+		.ok_or(AuthoritySetError::MissingSessionIndex)?;
+	u32::decode(&mut &data.0[..]).map_err(|_| AuthoritySetError::DecodeFailed)
+}
+
+///
 /// Fetches the queued validators' BEEFY keys from `Session::QueuedKeys` at `hash`.
 ///
 /// `AccountId` and `Keys` are the runtime's session types, supplied by the caller
