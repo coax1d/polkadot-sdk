@@ -3,7 +3,7 @@ pub mod notification;
 pub(crate) mod gossip;
 pub(crate) mod peers;
 
-pub(crate) mod dkg_protocol_name {
+pub mod dkg_protocol_name {
 	use array_bytes::bytes2hex;
 	use sc_network::ProtocolName;
 

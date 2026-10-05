@@ -290,7 +290,7 @@ where
 	gossip_filter: RwLock<Option<Filter>>,
 	next_rebroadcast: Mutex<Instant>,
 	known_peers: Arc<Mutex<KnownPeers<H>>>,
-	network: Arc<N>,
+	network: N,
 }
 
 #[cfg(feature = "bls-experimental")]
@@ -299,7 +299,7 @@ where
 	H: Hash,
 	N: NetworkPeers + Send + Sync,
 {
-	pub(crate) fn new(network: Arc<N>, known_peers: Arc<Mutex<KnownPeers<H>>>) -> Self {
+	pub(crate) fn new(network: N, known_peers: Arc<Mutex<KnownPeers<H>>>) -> Self {
 		Self {
 			gossip_filter: RwLock::new(None),
 			next_rebroadcast: Mutex::new(Instant::now() + REBROADCAST_AFTER),

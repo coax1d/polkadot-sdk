@@ -63,10 +63,10 @@ pub struct WorkerParams<Client, Network, S, Bc, AccountId, Keys> {
 	/// dealing's proof of possession (the keystore cannot export secrets).
 	/// If `None`, the node validates/forwards dealings but does not deal.
 	pub dealing_pair: Option<sp_core::ecdsa_bls381::Pair>,
-	/// Network implementing gossip and peers reporting.
-	pub network: Arc<Network>,
+	/// Network implementing gossip and peers reporting (e.g. `Arc<dyn NetworkService>`).
+	pub network: Network,
 	/// Syncing service implementing a sync oracle.
-	pub sync: Arc<S>,
+	pub sync: S,
 	/// Handle for receiving notification events on the DKG gossip protocol.
 	pub notification_service: Box<dyn NotificationService>,
 	/// The DKG gossip protocol name, see
